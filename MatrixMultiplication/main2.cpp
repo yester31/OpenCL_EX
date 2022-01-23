@@ -1,4 +1,5 @@
 // This program implements a vector addition using OpenCL
+// 미완성... 2022/01/03
 
 // System includes
 #include <stdio.h>
@@ -8,7 +9,7 @@
 // OpenCL includes
 #include <CL/cl.h>
 
-#define TILE_WIDTH 32
+#define TILE_WIDTH 16
 
 // kernel을 읽어서 char pointer생성
 char* readSource(char* kernelPath) {
@@ -106,6 +107,8 @@ void generate_data_f(float* ptr, unsigned int size) {
 // platform 2. Device 1: NVIDIA GeForce RTX 3060 Laptop GPU
 // dur_time(openCL) = 5.58694[msec]
 // dur_time(cpu) = 1918.76697[msec]
+
+
 
 int main() {
 	// This code executes on the OpenCL host
@@ -223,7 +226,7 @@ int main() {
 	// STEP 7: Create and compile the program
 	//----------------------------------------------------- 
 
-	char* programSource = readSource("MatMul.cl"); // 커널 함수 파일 로드
+	char* programSource = readSource("MatMul2.cl"); // 커널 함수 파일 로드
 	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status);	// 프로그램 생성
 	status = clBuildProgram(program, numDevices, &devices[deviceNum_ - 1], NULL, NULL, NULL);					// 디바이스를 위한 프로그램을 빌드(컴파일)
 
@@ -232,7 +235,7 @@ int main() {
 	//----------------------------------------------------- 
 
 	cl_kernel kernel = NULL;
-	kernel = clCreateKernel(program, "matMul_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	kernel = clCreateKernel(program, "matMul_kernel_sm", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	//-----------------------------------------------------
 	// STEP 9: Set the kernel arguments
@@ -250,14 +253,17 @@ int main() {
 	//----------------------------------------------------- 
 
 	size_t globalWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
+	const int GRID_WIDTH = (M * N - 1) / (TILE_WIDTH * TILE_WIDTH) + 1;
 	globalWorkSize[0] = M * N;
+	size_t localWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
+	localWorkSize[0] = TILE_WIDTH * TILE_WIDTH;
 
 	//-----------------------------------------------------
 	// STEP 11: Enqueue the kernel for execution
 	//----------------------------------------------------- 
 
 	cl_event event;
-	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
+	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, localWorkSize, 0, NULL, &event); // 커널 실행
 
 
 	clWaitForEvents(1, &event);
@@ -297,7 +303,7 @@ int main() {
 	// Free host resources
 	free(A);
 	free(B);
-	free(C);	
+	free(C);
 	free(H);
 	free(platforms);
 	free(devices);

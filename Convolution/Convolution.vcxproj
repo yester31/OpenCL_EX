@@ -29,8 +29,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{32d22feb-cc53-41f1-85ae-13a0856c66a5}</ProjectGuid>
-    <RootNamespace>MatrixMultiplication</RootNamespace>
+    <ProjectGuid>{744f4338-b453-4399-9aa7-fd8974fb0198}</ProjectGuid>
+    <RootNamespace>Convolution</RootNamespace>
   </PropertyGroup>
   <!-- Workaround for VS Template engine (latest Windows SDK selection) -->
   <PropertyGroup Condition="'$(WindowsTargetPlatformVersion)'==''">
@@ -187,21 +187,14 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="main2.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GPUOpenCLProjectforWindows.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
-    <Intel_OpenCL_Build_Rules Include="MatMul.cl" />
-    <Intel_OpenCL_Build_Rules Include="MatMul2.cl" />
+    <Intel_OpenCL_Build_Rules Include="Convolution.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

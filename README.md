@@ -13,8 +13,8 @@
 * MatrixMultiplication
 * Time check on NVIDIA GPU(wo : without data transfer time for Device)
 	- A[1024, 1024] * B[1024, 1024] = C[1024, 1024]
-	- CUDA Kernel 	= 4.982 [msec]
-	- OpenCL Kernel 	= 5.587 [msec]
+	- CUDA Kernel	= 4.982 [msec]
+	- OpenCL Kernel	= 5.587 [msec]
 
 ##  OpenCL Convolution(Preparing)
 *
