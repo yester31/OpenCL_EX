@@ -6,19 +6,25 @@
 - Intel(R) Iris(R) Xe Graphics (iGPU)
 - NVIDIA GeForce RTX 3060 Laptop GPU (gpu)
 
-## OpenCL vector add(completed)
+## OpenCL Vector Add(Completed)
 - vecAdd
 
-##  OpenCL matrix multiplication(completed)
+##  OpenCL Matrix Multiplication(Completed)
 - MatrixMultiplication
 
+##  OpenCL Convolution(Preparing)
+-
 
-##  OpenCL Convolution(preparing)
+##  OpenCL GEMM Convolution(Preparing)
+-
+
+##  OpenCL Bicubic Interpolation(Preparing)
+-
+
+##  OpenCL Sparse Matrix Multiplication(Preparing)
 -
 
 
-##  OpenCL GEMM Convolution(preparing)
--
 
 
 ## Reference
