@@ -53,30 +53,78 @@ char* readSource(char* kernelPath) {
 	return source;
 }
 
+void matMul(float *A, float *B, float *C, int M, int N, int K)
+{
+	for (int m = 0; m < M; ++m) {
+		for (int n = 0; n < N; ++n) {
+			float sum = 0;
+			for (int k = 0; k < K; ++k) {
+				sum += A[m * K + k] * B[k * N + n];
+			}
+			C[m * N + n] = sum;
+		}
+	}
+}
+
+void valid_results_f(float *result_1, float *result_2, int M, int N) {
+	bool result = true;
+	for (int i = 0; i < M * N; i++) {
+		if ((result_1[i]) != result_2[i]) {
+			printf("[%d] The results is not matched! (%f, %f)\n", i, result_1[i], result_2[i]);
+			result = false;
+		}
+	}
+	if (result)printf("Results is same!! works well! \n");
+	else printf("results is not matched! \n");
+}
+
+void print_results(float *output, int M, int N) {
+	printf("\n \n");
+	for (int m = 0; m < M; ++m) {
+		for (int n = 0; n < N; ++n) {
+			printf("%.2f ", output[m * N + n]);
+		}printf("\n");
+	}printf("\n \n");
+}
+
+void generate_data_f(float* ptr, unsigned int size) {
+	float tt = 1;
+	while (size--) {
+		//*ptr++ = rand() % 10;
+		*ptr++ = tt++;
+	}
+}
+
 int main() {
 	// This code executes on the OpenCL host
+	// A[M, K] * B[K, N] = C[M, N]
+	const int M = 4;
+	const int K = 4;
+	const int N = 4;
 
 	// Host data
-	int *A = NULL;  // Input array
-	int *B = NULL;  // Input array
-	int *C = NULL;  // Output array
-
-	// Elements in each array
-	const int elements = 10;
-
-	// Compute the size of the data 
-	size_t datasize = sizeof(int)*elements;
+	float *A = NULL;  // Input matrix
+	float *B = NULL;  // Input matrix
+	float *C = NULL;  // Device Output matrix
+	float *H = NULL;  // Host Output matrix
 
 	// Allocate space for input/output data
-	A = (int*)malloc(datasize);
-	B = (int*)malloc(datasize);
-	C = (int*)malloc(datasize);
-	// Initialize the input data
-	for (int i = 0; i < elements; i++) {
-		A[i] = i;
-		B[i] = i * 2;
-	}
+	A = (float*)malloc(sizeof(float) * M * K);
+	B = (float*)malloc(sizeof(float) * K * N);
+	C = (float*)malloc(sizeof(float) * M * N);
+	H = (float*)malloc(sizeof(float) * M * N);
 
+	// input data 초기화
+	generate_data_f(A, M * K);
+	generate_data_f(B, K * N);
+
+	print_results(A, M, K);
+	print_results(B, K, N);
+
+	matMul(A, B, H, M, N, K);
+
+	print_results(H, M, N);
+	
 	//================================================================================================================
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
 	cl_int status;
@@ -152,31 +200,31 @@ int main() {
 	cl_mem bufferA;  // Input array on the device
 	cl_mem bufferB;  // Input array on the device
 	cl_mem bufferC;  // Output array on the device
-	bufferA = clCreateBuffer(context, CL_MEM_READ_ONLY, datasize, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
-	bufferB = clCreateBuffer(context, CL_MEM_READ_ONLY, datasize, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
-	bufferC = clCreateBuffer(context, CL_MEM_WRITE_ONLY, datasize, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
+	bufferA = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * M * K, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
+	bufferB = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * K * N, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
+	bufferC = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * M * N, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
 
 	//-----------------------------------------------------
 	// STEP 6: Write host data to device buffers
 	//----------------------------------------------------- 
 
-	status = clEnqueueWriteBuffer(cmdQueue, bufferA, CL_FALSE, 0, datasize, A, 0, NULL, NULL); // host (A) -> device (bufferA)전달
-	status = clEnqueueWriteBuffer(cmdQueue, bufferB, CL_FALSE, 0, datasize, B, 0, NULL, NULL); // host (B) -> device (bufferB)전달
+	status = clEnqueueWriteBuffer(cmdQueue, bufferA, CL_FALSE, 0, sizeof(float) * M * K, A, 0, NULL, NULL); // host (A) -> device (bufferA)전달
+	status = clEnqueueWriteBuffer(cmdQueue, bufferB, CL_FALSE, 0, sizeof(float) * K * N, B, 0, NULL, NULL); // host (B) -> device (bufferB)전달
 
 	//-----------------------------------------------------
 	// STEP 7: Create and compile the program
 	//----------------------------------------------------- 
 
-	char* programSource = readSource("vecAdd.cl"); // 커널 함수 파일 로드
-	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status); // 프로그램 생성
-	status = clBuildProgram(program, numDevices, &devices[deviceNum_-1], NULL, NULL, NULL); // 디바이스를 위한 프로그램을 빌드(컴파일)
+	char* programSource = readSource("MatMul.cl"); // 커널 함수 파일 로드
+	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status);	// 프로그램 생성
+	status = clBuildProgram(program, numDevices, &devices[deviceNum_ - 1], NULL, NULL, NULL);					// 디바이스를 위한 프로그램을 빌드(컴파일)
 
 	//-----------------------------------------------------
 	// STEP 8: Create the kernel
 	//----------------------------------------------------- 
 
 	cl_kernel kernel = NULL;
-	kernel = clCreateKernel(program, "vecadd", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	kernel = clCreateKernel(program, "matMul_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	//-----------------------------------------------------
 	// STEP 9: Set the kernel arguments
@@ -185,13 +233,16 @@ int main() {
 	status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufferA); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
 	status = clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufferB); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
 	status = clSetKernelArg(kernel, 2, sizeof(cl_mem), &bufferC); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(kernel, 3, sizeof(cl_int), &M); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(kernel, 4, sizeof(cl_int), &N); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(kernel, 5, sizeof(cl_int), &K); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
 
 	//-----------------------------------------------------
 	// STEP 10: Configure the work-item structure
 	//----------------------------------------------------- 
 
 	size_t globalWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	globalWorkSize[0] = elements;
+	globalWorkSize[0] = M * N;
 
 	//-----------------------------------------------------
 	// STEP 11: Enqueue the kernel for execution
@@ -203,23 +254,9 @@ int main() {
 	// STEP 12: Read the output buffer back to the host
 	//----------------------------------------------------- 
 
-	status = clEnqueueReadBuffer(cmdQueue, bufferC, CL_TRUE, 0, datasize, C, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
+	status = clEnqueueReadBuffer(cmdQueue, bufferC, CL_TRUE, 0, sizeof(float) * M * N, C, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
 
-	// Verify the output
-	bool result = true;
-	for (int i = 0; i < elements; i++) {
-		printf("%d + %d = %d\n", A[i], B[i], C[i]);
-		if (C[i] != A[i] + B[i]) {
-			result = false;
-			break;
-		}
-	}
-	if (result) {
-		printf("Output is correct\n");
-	}
-	else {
-		printf("Output is incorrect\n");
-	}
+	valid_results_f(H, C, M, N); // Verify the output
 
 	//-----------------------------------------------------
 	// STEP 13: Release OpenCL resources
@@ -237,7 +274,8 @@ int main() {
 	// Free host resources
 	free(A);
 	free(B);
-	free(C);
+	free(C);	
+	free(H);
 	free(platforms);
 	free(devices);
 }

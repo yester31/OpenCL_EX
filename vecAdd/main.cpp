@@ -89,7 +89,7 @@ int main() {
 	cl_uint numPlatforms = 0;
 	cl_platform_id *platforms = NULL;
 	status = clGetPlatformIDs(0, NULL, &numPlatforms);							// 사용 가능한 플랫폼 수 확인
-	platforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id)); // 플랫폼 정보를 가져올 수 있도록 공간 할당
+	platforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id));	// 플랫폼 정보를 가져올 수 있도록 공간 할당
 	status = clGetPlatformIDs(numPlatforms, platforms, NULL);					// 플랫폼 정보를 가져옴
 
 	//-----------------------------------------------------
@@ -98,23 +98,23 @@ int main() {
 
 	cl_uint numDevices = 0;
 	cl_device_id *devices = NULL;
-	status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_ALL, 0, NULL,	&numDevices);	// 해당 플랫폼의 사용 가능한 디바이스 수 확인
-	devices = (cl_device_id*)malloc(numDevices * sizeof(cl_device_id));					// 각 디바이스를 위한 공간 할당
-	status = clGetDeviceIDs(platforms[0],CL_DEVICE_TYPE_ALL,numDevices,	devices,NULL);	// 디바이스 정보를 가져옴
+	status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_ALL, 0, NULL,	&numDevices);		// 해당 플랫폼의 사용 가능한 디바이스 수 확인
+	devices = (cl_device_id*)malloc(numDevices * sizeof(cl_device_id));						// 각 디바이스를 위한 공간 할당
+	status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_ALL, numDevices, devices, NULL);	// 디바이스 정보를 가져옴
 
 	//-----------------------------------------------------
 	// STEP 3: Create a context
 	//----------------------------------------------------- 
 
 	cl_context context = NULL;
-	context = clCreateContext(NULL,	numDevices,	devices, NULL, NULL, &status); // context 생성 및 (원하는)디바이스와 연결
+	context = clCreateContext(NULL,	numDevices,	devices, NULL, NULL, &status);	// context 생성 및 (원하는)디바이스와 연결
 
 	//-----------------------------------------------------
 	// STEP 4: Create a command queue
 	//----------------------------------------------------- 
 
 	cl_command_queue cmdQueue;
-	cmdQueue = clCreateCommandQueue(context, devices[0], 0, &status); //명령어 큐 생성 및 (원하는)디바이스와 연결
+	cmdQueue = clCreateCommandQueue(context, devices[0], 0, &status);	//명령어 큐 생성 및 (원하는)디바이스와 연결
 
 	//================================================================================================================
 
@@ -133,16 +133,16 @@ int main() {
 	// STEP 6: Write host data to device buffers
 	//----------------------------------------------------- 
 
-	status = clEnqueueWriteBuffer(cmdQueue, bufferA, CL_FALSE, 0, datasize, A, 0, NULL, NULL); // host (A) -> device (bufferA)전달
-	status = clEnqueueWriteBuffer(cmdQueue, bufferB, CL_FALSE, 0, datasize, B, 0, NULL, NULL); // host (B) -> device (bufferB)전달
+	status = clEnqueueWriteBuffer(cmdQueue, bufferA, CL_FALSE, 0, datasize, A, 0, NULL, NULL);	// host (A) -> device (bufferA)전달
+	status = clEnqueueWriteBuffer(cmdQueue, bufferB, CL_FALSE, 0, datasize, B, 0, NULL, NULL);	// host (B) -> device (bufferB)전달
 
 	//-----------------------------------------------------
 	// STEP 7: Create and compile the program
 	//----------------------------------------------------- 
 
-	char* programSource = readSource("vecAdd.cl"); // 커널 함수 파일 로드
-	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status); // 프로그램 생성
-	status = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL); // 디바이스를 위한 프로그램을 빌드(컴파일)
+	char* programSource = readSource("vecAdd.cl");																// 커널 함수 파일 로드
+	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status);	// 프로그램 생성
+	status = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);									// 디바이스를 위한 프로그램을 빌드(컴파일)
 
 	//-----------------------------------------------------
 	// STEP 8: Create the kernel
