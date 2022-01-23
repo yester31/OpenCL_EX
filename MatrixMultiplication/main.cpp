@@ -3,6 +3,7 @@
 // System includes
 #include <stdio.h>
 #include <stdlib.h>
+#include <chrono>
 
 // OpenCL includes
 #include <CL/cl.h>
@@ -55,6 +56,8 @@ char* readSource(char* kernelPath) {
 
 void matMul(float *A, float *B, float *C, int M, int N, int K)
 {
+	uint64_t start_time1 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
 	for (int m = 0; m < M; ++m) {
 		for (int n = 0; n < N; ++n) {
 			float sum = 0;
@@ -64,6 +67,9 @@ void matMul(float *A, float *B, float *C, int M, int N, int K)
 			C[m * N + n] = sum;
 		}
 	}
+	uint64_t start_time2 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	printf("dur_time(cpu)              = %6.5f [msec] \n", (start_time2 - start_time1) / 1000.f);
+
 }
 
 void valid_results_f(float *result_1, float *result_2, int M, int N) {
@@ -90,17 +96,21 @@ void print_results(float *output, int M, int N) {
 void generate_data_f(float* ptr, unsigned int size) {
 	float tt = 1;
 	while (size--) {
-		//*ptr++ = rand() % 10;
-		*ptr++ = tt++;
+		*ptr++ = rand() % 10;
+		//*ptr++ = tt;
 	}
 }
+
+// platform 2. Device 1: NVIDIA GeForce RTX 3060 Laptop GPU
+// dur_time(openCL) = 5.58694[msec]
+// dur_time(cpu) = 1918.76697[msec]
 
 int main() {
 	// This code executes on the OpenCL host
 	// A[M, K] * B[K, N] = C[M, N]
-	const int M = 4;
-	const int K = 4;
-	const int N = 4;
+	const int M = 1024;
+	const int K = 1024;
+	const int N = 1024;
 
 	// Host data
 	float *A = NULL;  // Input matrix
@@ -118,13 +128,9 @@ int main() {
 	generate_data_f(A, M * K);
 	generate_data_f(B, K * N);
 
-	print_results(A, M, K);
-	print_results(B, K, N);
+	//print_results(A, M, K);
+	//print_results(B, K, N);
 
-	matMul(A, B, H, M, N, K);
-
-	print_results(H, M, N);
-	
 	//================================================================================================================
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
 	cl_int status;
@@ -189,7 +195,7 @@ int main() {
 
 	status = clGetDeviceIDs(platforms[platformNum_ - 1], CL_DEVICE_TYPE_ALL, numDevices, devices, NULL);	// 선택한 디바이스 정보를 가져옴
 	cl_context context = clCreateContext(NULL, 1, &devices[deviceNum_ - 1], NULL, NULL, &status);			// context 생성 및 (원하는)디바이스와 연결
-	cl_command_queue cmdQueue = clCreateCommandQueue(context, devices[deviceNum_ - 1], 0, &status);			// 명령어 큐 생성 및 (원하는)디바이스와 연결
+	cl_command_queue cmdQueue = clCreateCommandQueue(context, devices[deviceNum_ - 1], CL_QUEUE_PROFILING_ENABLE, &status);			// 명령어 큐 생성 및 (원하는)디바이스와 연결
 
 	//================================================================================================================
 
@@ -248,7 +254,18 @@ int main() {
 	// STEP 11: Enqueue the kernel for execution
 	//----------------------------------------------------- 
 
-	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL); // 커널 실행
+	cl_event event;
+
+	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
+	
+	clWaitForEvents(1, &event);
+	clFinish(cmdQueue);
+
+	cl_ulong time_start;
+	cl_ulong time_end;
+	clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+	clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+	printf("dur_time(openCL)           = %6.5f [msec] \n", (time_end - time_start) / 1000000.0);
 
 	//-----------------------------------------------------
 	// STEP 12: Read the output buffer back to the host
@@ -256,7 +273,11 @@ int main() {
 
 	status = clEnqueueReadBuffer(cmdQueue, bufferC, CL_TRUE, 0, sizeof(float) * M * N, C, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
 
+	matMul(A, B, H, M, N, K);
+	//print_results(H, M, N);
+
 	valid_results_f(H, C, M, N); // Verify the output
+	//print_results(C, M, N);
 
 	//-----------------------------------------------------
 	// STEP 13: Release OpenCL resources
