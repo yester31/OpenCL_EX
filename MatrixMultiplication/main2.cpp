@@ -1,5 +1,5 @@
-// This program implements a vector addition using OpenCL
-// 미완성... 2022/01/03
+// Matrix multiplication (Tiling in the local memory)
+// TS 값의 배수 크기 필수!!!
 
 // System includes
 #include <stdio.h>
@@ -9,113 +9,22 @@
 // OpenCL includes
 #include <CL/cl.h>
 
-#define TILE_WIDTH 16
+// Custom header file includes
+#include "../include/utils_yh.h"
 
-// kernel을 읽어서 char pointer생성
-char* readSource(char* kernelPath) {
+#define TS 16
 
-	cl_int status;
-	FILE *fp;
-	char *source;
-	long int size;
-
-	printf("Program file is: %s\n", kernelPath);
-
-	fp = fopen(kernelPath, "rb");
-	if (!fp) {
-		printf("Could not open kernel file\n");
-		exit(-1);
-	}
-	status = fseek(fp, 0, SEEK_END);
-	if (status != 0) {
-		printf("Error seeking to end of file\n");
-		exit(-1);
-	}
-	size = ftell(fp);
-	if (size < 0) {
-		printf("Error getting file position\n");
-		exit(-1);
-	}
-
-	rewind(fp);
-
-	source = (char *)malloc(size + 1);
-
-	int i;
-	for (i = 0; i < size + 1; i++) {
-		source[i] = '\0';
-	}
-
-	if (source == NULL) {
-		printf("Error allocating space for the kernel source\n");
-		exit(-1);
-	}
-
-	fread(source, 1, size, fp);
-	source[size] = '\0';
-
-	return source;
-}
-
-void matMul(float *A, float *B, float *C, int M, int N, int K)
-{
-	uint64_t start_time1 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-
-	for (int m = 0; m < M; ++m) {
-		for (int n = 0; n < N; ++n) {
-			float sum = 0;
-			for (int k = 0; k < K; ++k) {
-				sum += A[m * K + k] * B[k * N + n];
-			}
-			C[m * N + n] = sum;
-		}
-	}
-	uint64_t start_time2 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-	printf("dur_time(cpu)              = %6.5f [msec] \n", (start_time2 - start_time1) / 1000.f);
-
-}
-
-void valid_results_f(float *result_1, float *result_2, int M, int N) {
-	bool result = true;
-	for (int i = 0; i < M * N; i++) {
-		if ((result_1[i]) != result_2[i]) {
-			printf("[%d] The results is not matched! (%f, %f)\n", i, result_1[i], result_2[i]);
-			result = false;
-		}
-	}
-	if (result)printf("Results is same!! works well! \n");
-	else printf("results is not matched! \n");
-}
-
-void print_results(float *output, int M, int N) {
-	printf("\n \n");
-	for (int m = 0; m < M; ++m) {
-		for (int n = 0; n < N; ++n) {
-			printf("%.2f ", output[m * N + n]);
-		}printf("\n");
-	}printf("\n \n");
-}
-
-void generate_data_f(float* ptr, unsigned int size) {
-	float tt = 1;
-	while (size--) {
-		*ptr++ = rand() % 10;
-		//*ptr++ = tt;
-	}
-}
-
-// platform 2. Device 1: NVIDIA GeForce RTX 3060 Laptop GPU
-// dur_time(openCL) = 5.58694[msec]
-// dur_time(cpu) = 1918.76697[msec]
-
-
+// platform 1. Device 1: Intel(R) UHD Graphics 750
+// Program file is : MatMul2.cl
+// dur_time(openCL) = 37.95008[msec]
+// dur_time(cpu) = 1113.05200[msec]
 
 int main() {
 	// This code executes on the OpenCL host
 	// A[M, K] * B[K, N] = C[M, N]
-	const int M = 64;
-	const int K = 64;
-	const int N = 64;
+	const int M = 1024;
+	const int K = 1024;
+	const int N = 1024;
 
 	// Host data
 	float *A = NULL;  // Input matrix
@@ -130,11 +39,11 @@ int main() {
 	H = (float*)malloc(sizeof(float) * M * N);
 
 	// input data 초기화
-	generate_data_f(A, M * K);
-	generate_data_f(B, K * N);
+	initDataScalar(A, M * K);
+	initDataScalar(B, K * N);
 
-	//print_results(A, M, K);
-	//print_results(B, K, N);
+	//printData(A, M, K);
+	//printData(B, K, N);
 
 	//================================================================================================================
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
@@ -191,12 +100,20 @@ int main() {
 
 	int platformNum_;
 	int deviceNum_;
-	printf("\n\nSELECT PLATFORM('1' ~ '%d') : ", numPlatforms);
-	scanf("%d", &platformNum_);
-	printf("\n");
-	printf("SELECT DEVICE('1' ~ '%d') : ", numDevices);
-	scanf("%d", &deviceNum_);
-	printf("\n");
+	bool selection = false;
+
+	if (selection) {
+		printf("\n\nSELECT PLATFORM('1' ~ '%d') : ", numPlatforms);
+		scanf("%d", &platformNum_);
+		printf("\n");
+		printf("SELECT DEVICE('1' ~ '%d') : ", numDevices);
+		scanf("%d", &deviceNum_);
+		printf("\n");
+	}
+	else {
+		platformNum_ = 1;
+		deviceNum_ = 1;
+	}
 
 	status = clGetDeviceIDs(platforms[platformNum_ - 1], CL_DEVICE_TYPE_ALL, numDevices, devices, NULL);	// 선택한 디바이스 정보를 가져옴
 	cl_context context = clCreateContext(NULL, 1, &devices[deviceNum_ - 1], NULL, NULL, &status);			// context 생성 및 (원하는)디바이스와 연결
@@ -235,7 +152,7 @@ int main() {
 	//----------------------------------------------------- 
 
 	cl_kernel kernel = NULL;
-	kernel = clCreateKernel(program, "matMul_kernel_sm", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	kernel = clCreateKernel(program, "tiled_matMul_kernel2", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	//-----------------------------------------------------
 	// STEP 9: Set the kernel arguments
@@ -252,19 +169,21 @@ int main() {
 	// STEP 10: Configure the work-item structure
 	//----------------------------------------------------- 
 
-	size_t globalWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	const int GRID_WIDTH = (M * N - 1) / (TILE_WIDTH * TILE_WIDTH) + 1;
-	globalWorkSize[0] = M * N;
-	size_t localWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	localWorkSize[0] = TILE_WIDTH * TILE_WIDTH;
+	const size_t local[2] = {TS, TS };
+
+	size_t global_x = (M % TS) == 0 ? M : ((M / TS) + 1) * TS;
+	size_t global_y = (N % TS) == 0 ? N : ((N / TS) + 1) * TS;
+
+	const size_t global[2] = {global_x, global_y };
+	//const size_t global[2] = {(size_t)M, (size_t)N};
 
 	//-----------------------------------------------------
 	// STEP 11: Enqueue the kernel for execution
 	//----------------------------------------------------- 
 
 	cl_event event;
-	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, localWorkSize, 0, NULL, &event); // 커널 실행
-
+	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, global, local, 0, NULL, &event); // 커널 실행
+	checkError(status, __LINE__);
 
 	clWaitForEvents(1, &event);
 	clFinish(cmdQueue);
@@ -281,11 +200,11 @@ int main() {
 
 	status = clEnqueueReadBuffer(cmdQueue, bufferC, CL_TRUE, 0, sizeof(float) * M * N, C, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
 
-	matMul(A, B, H, M, N, K);
-	//print_results(H, M, N);
+	matMulCpu(A, B, H, M, N, K);
+	//printData(H, M, N);
 
-	valid_results_f(H, C, M, N); // Verify the output
-	//print_results(C, M, N);
+	compareResults(H, C, M * N); // Verify the output
+	//printData(C, M, N);
 
 	//-----------------------------------------------------
 	// STEP 13: Release OpenCL resources

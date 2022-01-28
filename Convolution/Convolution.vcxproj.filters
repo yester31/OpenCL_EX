@@ -26,6 +26,9 @@
     <ClInclude Include="GPUOpenCLProjectforWindows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\utils_yh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Intel_OpenCL_Build_Rules Include="Convolution.cl">

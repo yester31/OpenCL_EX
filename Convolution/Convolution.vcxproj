@@ -190,6 +190,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\utils_yh.h" />
     <ClInclude Include="GPUOpenCLProjectforWindows.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

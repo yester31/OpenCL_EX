@@ -1,6 +1,4 @@
-
-// OpenCL kernel to perform an element-wise 
-// Matrix multiplication                       
+// Matrix multiplication (Naive implementation)
 
 __kernel
 void matMul_kernel(

@@ -8,199 +8,15 @@
 // OpenCL includes
 #include <CL/cl.h>
 
-// kernel을 읽어서 char pointer생성
-char* readSource(char* kernelPath) {
-
-	cl_int status;
-	FILE *fp;
-	char *source;
-	long int size;
-
-	printf("Program file is: %s\n", kernelPath);
-
-	fp = fopen(kernelPath, "rb");
-	if (!fp) {
-		printf("Could not open kernel file\n");
-		exit(-1);
-	}
-	status = fseek(fp, 0, SEEK_END);
-	if (status != 0) {
-		printf("Error seeking to end of file\n");
-		exit(-1);
-	}
-	size = ftell(fp);
-	if (size < 0) {
-		printf("Error getting file position\n");
-		exit(-1);
-	}
-
-	rewind(fp);
-
-	source = (char *)malloc(size + 1);
-
-	int i;
-	for (i = 0; i < size + 1; i++) {
-		source[i] = '\0';
-	}
-
-	if (source == NULL) {
-		printf("Error allocating space for the kernel source\n");
-		exit(-1);
-	}
-
-	fread(source, 1, size, fp);
-	source[size] = '\0';
-
-	return source;
-}
-
-void valid_results_f(float *result_1, float *result_2, int M, int N) {
-	bool result = true;
-	for (int i = 0; i < M * N; i++) {
-		if ((result_1[i]) != result_2[i]) {
-			printf("[%d] The results is not matched! (%f, %f)\n", i, result_1[i], result_2[i]);
-			result = false;
-		}
-	}
-	if (result)printf("Results is same!! works well! \n");
-	else printf("results is not matched! \n");
-}
-
-void initDataScalar(float* ptr, unsigned int size, float tt = 1) {
-	while (size--) {
-		*ptr++ = tt;
-	}
-}
-
-void initDataRandom(float* ptr, unsigned int size) {
-	while (size--) {
-		*ptr++ = rand() % 10;
-	}
-}
-
-void convolution(float* output, float* input, float* weight, int IN, int IC, int IH, int IW, int OC, int KH, int KW, int SH, int SW) {
-	printf("===== Conventional Convolution ===== \n");
-
-	int OH = ((IH - KH) / SH) + 1;
-	int OW = ((IW - KW) / SW) + 1;
-
-	int C_offset_i, C_offset_o, C_offset_k, H_offset_i, H_offset_o, H_offset_k, W_offset_i, W_offset_o, W_offset_k, ⁠g_idx_i, g_idx_o, g_idx_k;
-	int N_offset_i = IC * IH * IW;
-	int N_offset_o = OC * OH * OW;
-	int N_offset_k = IC * KH * KW;
-
-	for (int ⁠n_idx = 0; ⁠n_idx < IN; ⁠n_idx++) {
-		C_offset_i = ⁠n_idx * N_offset_i;
-		C_offset_o = ⁠n_idx * N_offset_o;
-
-		for (int k_idx = 0; k_idx < OC; k_idx++) {
-			C_offset_k = k_idx * N_offset_k;
-			H_offset_o = k_idx * OH * OW + C_offset_o;
-
-			for (int ⁠c_idx = 0; ⁠c_idx < IC; ⁠c_idx++) {
-				H_offset_i = ⁠c_idx * IH * IW + C_offset_i;
-				H_offset_k = ⁠c_idx * KH * KW + C_offset_k;
-
-				for (int rowStride = 0; rowStride < OH; rowStride++) {
-					W_offset_o = rowStride * OW + H_offset_o;
-
-					for (int colStride = 0; colStride < OW; colStride++) {
-						float sum = 0;
-						g_idx_o = colStride + W_offset_o;
-
-						for (int y = rowStride * SH; y < rowStride * SH + KH; y++) {
-							W_offset_i = y * IW + H_offset_i;
-							W_offset_k = (y - rowStride * SH) * KH + H_offset_k;
-
-							for (int x = colStride * SW; x < colStride * SW + KW; x++) {
-
-								⁠g_idx_i = x + W_offset_i;
-								g_idx_k = (x - colStride * SW) + W_offset_k;
-								sum += input[⁠g_idx_i] * weight[g_idx_k];
-
-							}
-						}
-
-						output[g_idx_o] += sum;
-
-					}
-				}
-			}
-		}
-	}
-}
-
-void zeroPadding(float*  zeroPaddingOutput, float*  zeroPaddingInput, int input_n, int input_c, int input_h, int input_w, int leftPadingSize, int rightPadingSize, int topPadingSize, int bottomPadingSize) {
-
-	int temp1 = input_w * input_h * input_c;
-	int temp1o = (input_h + topPadingSize + bottomPadingSize) * (input_w + leftPadingSize + rightPadingSize) * input_c;
-	for (int ⁠n_idx = 0; ⁠n_idx < input_n; ⁠n_idx++)
-	{
-		int temp2 = ⁠n_idx * temp1;
-		int temp2o = ⁠n_idx * temp1o;
-		for (int ⁠c_idx = 0; ⁠c_idx < input_c; ⁠c_idx++)
-		{
-			int temp3 = ⁠c_idx * input_w * input_h + temp2;
-			int temp3o = ⁠c_idx * (input_w + leftPadingSize + rightPadingSize) * (input_h + topPadingSize + bottomPadingSize) + temp2o;
-			for (int ⁠h_idx = 0; ⁠h_idx < input_h; ⁠h_idx++)
-			{
-				int temp4 = ⁠h_idx * input_w + temp3;
-				int temp4o = (⁠h_idx + topPadingSize) * (input_w + leftPadingSize + rightPadingSize) + leftPadingSize + temp3o;
-
-				for (int w_idx = 0; w_idx < input_w; w_idx++)
-				{
-					int ⁠g_idx = w_idx + temp4;
-					int g_idx_Output = w_idx + temp4o;
-					zeroPaddingOutput[g_idx_Output] = zeroPaddingInput[⁠g_idx];
-				}
-			}
-		}
-	}
-}
-
-void valueCheck(float* valueCheckInput, int input_n, int input_c, int input_h, int input_w, int offset) {
-	if (offset == 1) { input_n = 1; }
-
-	int temp1 = input_w * input_h * input_c;
-	for (int ⁠n_idx = 0; ⁠n_idx < input_n; ⁠n_idx++)
-	{
-		int temp2 = ⁠n_idx * temp1;
-		for (int ⁠c_idx = 0; ⁠c_idx < input_c; ⁠c_idx++)
-		{
-			int temp3 = ⁠c_idx * input_w * input_h + temp2;
-			for (int ⁠h_idx = 0; ⁠h_idx < input_h; ⁠h_idx++)
-			{
-				int temp4 = ⁠h_idx * input_w + temp3;
-				printf("  ");
-				for (int w_idx = 0; w_idx < input_w; w_idx++)
-				{
-					int g_idx = w_idx + temp4;
-
-					printf("%6.2f ", valueCheckInput[g_idx]);
-
-				}printf("\n");
-			}printf("\n\n");
-		}printf("\n");
-	}printf("\n");
-}
-
-
-
-typedef struct {
-	int N;
-	int C, H, W;// data [N,C,H,W]
-	int K, P, Q;// output [N,K,P,Q]
-	int KH, KW;	// weight height, width
-	int SH, SW;
-	int left, right, top, bottom; // pad left, right, top, bottom
-} Config;
+// Custom header file includes 
+#include "../include/utils_yh.h"
 
 int main() {
 	// This code executes on the OpenCL host
 	//          N,C,H,W  K,P,Q, KH,KW, SH,SW, L,R,T,B
-	Config c = {1,1,4,4, 1,0,0, 2, 2,  1, 1,  0,0,0,0};
-	c.P = ((c.H + c.top + c.bottom - c.KH) / c.SH) + 1;
-	c.Q = ((c.W + c.left + c.right - c.KW) / c.SW) + 1;
+	Conv2dConfig c = {1,1,4,4, 1,0,0, 2, 2,  1, 1,  0,0,0,0};
+	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;
+	c.Q = ((c.W + c.PL + c.PR - c.KW) / c.SW) + 1;
 	printf(" input[%4d,%4d,%4d,%4d] kernel[%4d,%4d,%4d,%4d] output[%4d,%4d,%4d,%4d]\n\n", c.N, c.C, c.H, c.W, c.K, c.C, c.KH, c.KW, c.N, c.K, c.P, c.Q);
 
 	// Host data
@@ -212,28 +28,27 @@ int main() {
 	// Allocate space for input/output data
 	data = (float*)malloc(sizeof(float)* c.N*c.C*c.H*c.W);		// input data [N,C,H,W]
 	weight = (float*)malloc(sizeof(float) * c.K*c.C*c.KH*c.KW);	// weight [K,C,KH,KW]
-	output_d = (float*)malloc(sizeof(float) * c.K * c.P * c.Q * c.N); // 결과
-	output_h = (float*)malloc(sizeof(float) * c.K * c.P * c.Q * c.N); // 결과
+	//output_d = (float*)malloc(sizeof(float) * c.K * c.P * c.Q * c.N); // 결과
+	//output_h = (float*)malloc(sizeof(float) * c.K * c.P * c.Q * c.N); // 결과
+
+	// calloc은 할당된 공간의 값을 모두 0으로 초기화
+	output_d = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // 결과 
+	output_h = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // 결과
+
 
 	// input data 초기화
 	initDataRandom(data, c.N*c.C*c.H*c.W);
 	initDataScalar(weight, c.K*c.C*c.KH*c.KW, 2);
 
 	printf("Data(Input) \n");
-	valueCheck(data, c.N, c.C, c.H, c.W, 1);		//입력값 확인
+	printData(data, c.N, c.C, c.H, c.W, 1);		//입력값 확인
 	printf("weight \n");
-	valueCheck(weight, c.K, c.C, c.KH, c.KW, 1);	// 가중치 확인
+	printData(weight, c.K, c.C, c.KH, c.KW, 1);	// 가중치 확인
 	
 	convolution(output_h, data, weight, c.N, c.C, c.H, c.W, c.K, c.KH, c.KW, c.SH, c.SW);
 	printf("ouptut \n");
-	valueCheck(output_h, c.N, c.K, c.P, c.Q, 1);	// 결과 확인
+	printData(output_h, c.N, c.K, c.P, c.Q, 1);	// 결과 확인
 
-
-	free(data);
-	free(weight);
-	free(output_d);
-	free(output_h);
-	
 	/*
 	//================================================================================================================
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
@@ -290,12 +105,20 @@ int main() {
 
 	int platformNum_;
 	int deviceNum_;
-	printf("\n\nSELECT PLATFORM('1' ~ '%d') : ", numPlatforms);
-	scanf("%d", &platformNum_);
-	printf("\n");
-	printf("SELECT DEVICE('1' ~ '%d') : ", numDevices);
-	scanf("%d", &deviceNum_);
-	printf("\n");
+
+	bool selection = false;
+	if (selection) {
+		printf("\n\nSELECT PLATFORM('1' ~ '%d') : ", numPlatforms);
+		scanf("%d", &platformNum_);
+		printf("\n");
+		printf("SELECT DEVICE('1' ~ '%d') : ", numDevices);
+		scanf("%d", &deviceNum_);
+		printf("\n");
+	}
+	else {
+		platformNum_ = 1;
+		deviceNum_ = 1;
+	}
 
 	status = clGetDeviceIDs(platforms[platformNum_ - 1], CL_DEVICE_TYPE_ALL, numDevices, devices, NULL);	// 선택한 디바이스 정보를 가져옴
 	cl_context context = clCreateContext(NULL, 1, &devices[deviceNum_ - 1], NULL, NULL, &status);			// context 생성 및 (원하는)디바이스와 연결
@@ -359,8 +182,8 @@ int main() {
 	//----------------------------------------------------- 
 
 	cl_event event;
-	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
 
+	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
 
 	clWaitForEvents(1, &event);
 	clFinish(cmdQueue);
@@ -380,7 +203,7 @@ int main() {
 	matMul(A, B, H, M, N, K);
 	//print_results(H, M, N);
 
-	valid_results_f(H, C, M, N); // Verify the output
+	compareResults(H, C, M * N); // Verify the output
 	//print_results(C, M, N);
 
 	//-----------------------------------------------------
@@ -397,11 +220,14 @@ int main() {
 	clReleaseContext(context);
 
 	// Free host resources
-	free(A);
-	free(B);
-	free(C);
-	free(H);
 	free(platforms);
 	free(devices);
 	*/
+
+	free(data);
+	free(weight);
+	free(output_d);
+	free(output_h);
+
+	return 0;
 }

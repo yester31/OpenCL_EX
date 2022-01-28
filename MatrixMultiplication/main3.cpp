@@ -1,4 +1,4 @@
-// Matrix multiplication (Naive implementation)
+// Matrix multiplication (Tiling in the local memory)
 
 // System includes
 #include <stdio.h>
@@ -8,13 +8,17 @@
 // OpenCL includes
 #include <CL/cl.h>
 
-// Custom header file includes 
+// Custom header file includes
 #include "../include/utils_yh.h"
 
+#define TS 16			// The square-root of the 2D tile-size (== work-group dims)
+#define WPT 8			// The amount of work-per-thread, i.e. the thread-coarsening factor
+#define RTS (TS/WPT)	// The reduced tile-size in one dimension
+
 // platform 1. Device 1: Intel(R) UHD Graphics 750
-// Program file is : MatMul.cl
-// dur_time(openCL) = 56.53900[msec]
-// dur_time(cpu) = 1099.92700[msec]
+// Program file is : MatMul2.cl
+// dur_time(openCL) = 27.68108[msec]
+// dur_time(cpu) = 1102.48499[msec]
 
 int main() {
 	// This code executes on the OpenCL host
@@ -39,7 +43,6 @@ int main() {
 	initDataScalar(A, M * K);
 	initDataScalar(B, K * N);
 
-	// data 값 확인
 	//printData(A, M, K);
 	//printData(B, K, N);
 
@@ -115,7 +118,7 @@ int main() {
 
 	status = clGetDeviceIDs(platforms[platformNum_ - 1], CL_DEVICE_TYPE_ALL, numDevices, devices, NULL);	// 선택한 디바이스 정보를 가져옴
 	cl_context context = clCreateContext(NULL, 1, &devices[deviceNum_ - 1], NULL, NULL, &status);			// context 생성 및 (원하는)디바이스와 연결
-	cl_command_queue cmdQueue = clCreateCommandQueue(context, devices[deviceNum_ - 1], CL_QUEUE_PROFILING_ENABLE, &status);	// 명령어 큐 생성 및 (원하는)디바이스와 연결
+	cl_command_queue cmdQueue = clCreateCommandQueue(context, devices[deviceNum_ - 1], CL_QUEUE_PROFILING_ENABLE, &status);			// 명령어 큐 생성 및 (원하는)디바이스와 연결
 
 	//================================================================================================================
 
@@ -141,7 +144,7 @@ int main() {
 	// STEP 7: Create and compile the program
 	//----------------------------------------------------- 
 
-	char* programSource = readSource("MatMul.cl"); // 커널 함수 파일 로드
+	char* programSource = readSource("MatMul3.cl"); // 커널 함수 파일 로드
 	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status);	// 프로그램 생성
 	status = clBuildProgram(program, numDevices, &devices[deviceNum_ - 1], NULL, NULL, NULL);					// 디바이스를 위한 프로그램을 빌드(컴파일)
 
@@ -150,7 +153,7 @@ int main() {
 	//----------------------------------------------------- 
 
 	cl_kernel kernel = NULL;
-	kernel = clCreateKernel(program, "matMul_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	kernel = clCreateKernel(program, "wpt_matMul_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	//-----------------------------------------------------
 	// STEP 9: Set the kernel arguments
@@ -167,15 +170,16 @@ int main() {
 	// STEP 10: Configure the work-item structure
 	//----------------------------------------------------- 
 
-	size_t globalWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	globalWorkSize[0] = M * N;
+	const size_t local[2] = { TS, TS / WPT };
+	const size_t global[2] = { (size_t)M, (size_t)(N / WPT) };
 
 	//-----------------------------------------------------
 	// STEP 11: Enqueue the kernel for execution
 	//----------------------------------------------------- 
 
 	cl_event event;
-	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
+	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, global, local, 0, NULL, &event); // 커널 실행
+	checkError(status, __LINE__);
 
 	clWaitForEvents(1, &event);
 	clFinish(cmdQueue);
@@ -214,7 +218,7 @@ int main() {
 	// Free host resources
 	free(A);
 	free(B);
-	free(C);	
+	free(C);
 	free(H);
 	free(platforms);
 	free(devices);
