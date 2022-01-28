@@ -105,6 +105,14 @@ void initDataScalar(float* ptr, unsigned int size, float tt = 1) {
 	}
 }
 
+// 데이터 초기화(1부터 1씩 증가)
+void initDataStep(float* ptr, unsigned int size) {
+	float tt = 1;
+	while (size--) {
+		*ptr++ = tt++;
+	}
+}
+
 // 데이터 초기화(랜덤 값)
 void initDataRandom(float* ptr, unsigned int size) {
 	while (size--) {
