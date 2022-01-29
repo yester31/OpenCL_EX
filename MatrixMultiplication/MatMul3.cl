@@ -1,4 +1,4 @@
-// TODO: Add OpenCL kernel code here.// Matrix multiplication (Tiling in the local memory)
+// Matrix multiplication (Tiling in the local memory)
 
 #define TS 16			// The square-root of the 2D tile-size (== work-group dims)
 #define WPT 8			// The amount of work-per-thread, i.e. the thread-coarsening factor

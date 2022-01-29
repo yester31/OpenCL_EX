@@ -233,7 +233,7 @@ int main() {
 	status = clEnqueueNDRangeKernel(cmdQueue, im2col_kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
 	status = clEnqueueNDRangeKernel(cmdQueue, matMul_kernel, 1, NULL, globalWorkSize2, NULL, 0, NULL, &event); // 커널 실행
 	status = clEnqueueNDRangeKernel(cmdQueue, col2im_kernel, 1, NULL, globalWorkSize3, NULL, 0, NULL, &event); // 커널 실행
-	clWaitForEvents(1, &event);
+	clWaitForEvents(3, &event);
 	clFinish(cmdQueue);
 
 	cl_ulong time_start;
