@@ -4,11 +4,11 @@
 __kernel void im2col_kernel(
 	__global float *output,
 	__global float *input,
-	int N, 
-	int K, int P, int Q, 
-	int C, int H, int W, 
-	int KH, int KW, 
-	int SH, int SW, 
+	int N,
+	int K, int P, int Q,
+	int C, int H, int W,
+	int KH, int KW,
+	int SH, int SW,
 	int left, int top)
 {
 	// Get the work-item¡¯s unique ID

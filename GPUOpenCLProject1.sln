@@ -16,6 +16,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Convolution", "Convolution\Convolution.vcxproj", "{744F4338-B453-4399-9AA7-FD8974FB0198}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bicubic", "Bicubic\Bicubic.vcxproj", "{1EB7E5F9-4C92-429D-8647-EDA524FE0276}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -56,6 +58,14 @@ Global
 		{744F4338-B453-4399-9AA7-FD8974FB0198}.Release|x64.Build.0 = Release|x64
 		{744F4338-B453-4399-9AA7-FD8974FB0198}.Release|x86.ActiveCfg = Release|Win32
 		{744F4338-B453-4399-9AA7-FD8974FB0198}.Release|x86.Build.0 = Release|Win32
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Debug|x64.ActiveCfg = Debug|x64
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Debug|x64.Build.0 = Debug|x64
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Debug|x86.ActiveCfg = Debug|Win32
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Debug|x86.Build.0 = Debug|Win32
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Release|x64.ActiveCfg = Release|x64
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Release|x64.Build.0 = Release|x64
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Release|x86.ActiveCfg = Release|Win32
+		{1EB7E5F9-4C92-429D-8647-EDA524FE0276}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
