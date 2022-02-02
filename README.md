@@ -7,42 +7,45 @@
 * NVIDIA GeForce RTX 3060 Laptop GPU (gpu)
 
 ## OpenCL Vector Add(Completed)
-- vecAdd
+- vector sum
 
 ##  OpenCL Matrix Multiplication(in progress)
-- MatrixMultiplication project.
-- Time check (wo : without data transfer time for Device)
-     - A[1024, 1024] * B[1024, 1024] = C[1024, 1024]
-  
-1. Naive Matrix Multiplication
-   - main.cpp with MatMul.cl
-   - CUDA Kernel   = 4.982 [msec]
-   - OpenCL Kernel = 5.587 [msec]
+- MatrixMultiplication project
+  1. Naive Matrix Multiplication (Completed)
+     - main.cpp with MatMul.cl
+     - No limit on input size
      
-2. Matrix Multiplication Tiling in the local memory
-   - main2.cpp with MatMul2.cl
-3. Matrix Multiplication Tiling in the local memory with register level
-   - main3.cpp with MatMul3.cl
-4. Register Blocking Matrix Multiplication
-   - main4.cpp with MatMul4.cl
+  2. Matrix Multiplication Tiling in the local memoryv (Completed)
+     - main2.cpp with MatMul2.cl
+     - No limit on input size
+   
+  3. Matrix Multiplication Tiling in the local memory with register level(Verification Required)
+     - main3.cpp with MatMul3.cl
+
+  4. Register Blocking Matrix Multiplication(Verification Required)
+     - main4.cpp with MatMul4.cl
+  
+  - Time check for A[1024, 1024] * B[1024, 1024] = C[1024, 1024] (wo : without data transfer time for Device)
 
 
 ##  OpenCL Convolution(in progress)
-1. GEMM Convolution
+1. GEMM Convolution(in progress)
    - process : im2col -> Matrix Multiplication -> col2im
-2. Conventional Convolution
-   - a
-
+   - not yet optimization
+2. Conventional Convolution(Preparing)
+3. FFT Convolution(Plan)
+4. Winograd Convolution(Plan)
 
 
 ##  OpenCL Bicubic Interpolation(Preparing)
 *
 
 
+##  OpenCL Inference Framework Architecture design (Preparing)
+*
 
 
-
-##  OpenCL Sparse Matrix Multiplication(Preparing)
+##  OpenCL Sparse Matrix Multiplication (Plan)
 *
 
 
