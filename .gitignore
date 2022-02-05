@@ -1,2 +1,6 @@
-x64
-.vs
+x64/
+x86/
+.vs/
+*.idea
+Validation_py/Input_C
+Validation_py/Output_C

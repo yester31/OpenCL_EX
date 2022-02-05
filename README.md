@@ -29,16 +29,17 @@
 
 
 ##  OpenCL Convolution(in progress)
-1. GEMM Convolution(in progress)
+1. GEMM Convolution(Completed)
    - process : im2col -> Matrix Multiplication -> col2im
-   - not yet optimization
+   - Matrix Multiplication can be changed to better logic
 2. Conventional Convolution(Preparing)
 3. FFT Convolution(Plan)
 4. Winograd Convolution(Plan)
 
 
-##  OpenCL Bicubic Interpolation(Preparing)
-*
+##  OpenCL Bicubic Interpolation(Completed)
+- Bicubic Interpolation
+- Add test code(validation results with pytorch bicubic interpolation) 
 
 
 ##  OpenCL Inference Framework Architecture design (Preparing)

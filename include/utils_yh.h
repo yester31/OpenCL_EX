@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <CL/cl.h>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <string>
 
 // convolution 용 configuration struct
 typedef struct {
@@ -11,6 +15,22 @@ typedef struct {
 	int SH, SW;		// stride 
 	int PL, PR, PT, PB; // pad left, right, top, bottom
 } Conv2dConfig;
+
+void tofile(float* Buffer, int data_count, std::string fname = "../Validation_py/Tensor_from_C") {
+	std::ofstream fs(fname, std::ios::binary);
+	if (fs.is_open())
+		fs.write((const char*)Buffer, data_count * sizeof(float));
+	fs.close();
+	std::cout << "Done! file production to " << fname << std::endl;
+}
+
+void fromfile(std::vector<uint8_t>& Buffer, std::string fname = "../Validation_py/Tensor_from_py") {
+	std::ifstream ifs(fname, std::ios::binary);
+	if (ifs.is_open())
+		ifs.read((char*)Buffer.data(), Buffer.size() * sizeof(uint8_t));
+	ifs.close();
+	std::cout << "Done! file load from " << fname << std::endl;
+}
 
 // kernel을 읽어서 char pointer생성
 char* readSource(char* kernelPath) {
@@ -113,12 +133,24 @@ void initDataStep(float* ptr, unsigned int size) {
 	}
 }
 
-// 데이터 초기화(랜덤 값)
+// 데이터 랜덤 값 초기화 
+// rand() 0 ~ 32767 사이 난수 생성
 void initDataRandom(float* ptr, unsigned int size) {
 	while (size--) {
-		*ptr++ = rand() % 10;
+		*ptr++ = rand() % 10; // (0 - 10 사이 float 데이터 초기화)
 	}
 }
+
+// 데이터 랜덤 값 초기화 
+template <typename T>
+void initDataRandom255(T* ptr, unsigned int size) {
+	char tt = 1;
+	srand(777); // rand seed 값 전달
+	while (size--) {
+		*ptr++ = rand() % 255; // (0 - 255 사이 char 데이터 초기화)
+	}
+}
+
 
 // CPU에서 행렬곱 연산 (matrix multiplication on cpu)
 void matMulCpu(float *A, float *B, float *C, int M, int N, int K)

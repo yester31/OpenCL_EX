@@ -12,45 +12,30 @@
 #include "../include/utils_yh.h"
 
 int main() {
-	// This code executes on the OpenCL host
-	//				  N,C,H,W  K,P,Q, KH,KW, SH,SW, L,R,T,B
-	Conv2dConfig c = { 1,3,1024,1024, 4,0,0, 2, 2,  1, 1,  0,0,0,0 };
-	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;
-	c.Q = ((c.W + c.PL + c.PR - c.KW) / c.SW) + 1;
-	printf(" input[%4d,%4d,%4d,%4d] kernel[%4d,%4d,%4d,%4d] output[%4d,%4d,%4d,%4d]\n\n", c.N, c.C, c.H, c.W, c.K, c.C, c.KH, c.KW, c.N, c.K, c.P, c.Q);
+	// Bicubic Interpolation
+	// Input [N, C, H, W] -> Ouput [N, C, P, Q]
+	float rescale_factor = 2.f;
+	int N = 1;
+	int C = 3;
+	int H = 1080;
+	int W = 1920;
+	int P = H * rescale_factor;
+	int Q = W * rescale_factor;
+	float h_scale = float(H - 1) / (P - 1);
+	float w_scale = float(W - 1) / (Q - 1);
+	int num_elements = N * C * P * Q;
+	printf("input[%4d,%4d,%4d,%4d] -> output[%4d,%4d,%4d,%4d]\n\n", N, C, H, W, N, C, P, Q);
 
 	// Host data
-	float *data = NULL;		// Input matrix
-	float *weight = NULL;	// Input matrix
-	float *im2col = NULL;	// Input matrix
-	float *output_m = NULL;	// Device Output matrix
-	float *output_o = NULL;	// Device Output matrix
-	float *output_h = NULL;	// Host Output matrix
+	float *input = NULL;		// Input matrix
+	float *output = NULL;	// Host Output matrix
 
 	// Allocate space for input/output data
-	data = (float*)malloc(sizeof(float)* c.N * c.C * c.H * c.W);		// input data [N,C,H,W]
-	weight = (float*)malloc(sizeof(float) * c.K * c.C * c.KH * c.KW);	// weight [K,C,KH,KW]
-	im2col = (float*)malloc(sizeof(float) * c.C * c.KH * c.KW * c.N * c.P * c.Q);	// im2col output 
-	output_m = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // (할당된 공간의 값을 0 초기화) 
-	output_o = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // (할당된 공간의 값을 0 초기화) 
-	output_h = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // 결과
+	input = (float*)malloc(sizeof(float)* N * C * H * W);		// input [N, C, H, W]
+	output = (float*)malloc(sizeof(float)* N * C * P * Q);		// Ouput [N, C, P, Q]
 
 	// input data 초기화
-	//initDataStep(data, c.N * c.C * c.H * c.W);
-	//initDataStep(weight, c.K * c.C * c.KH * c.KW);
-
-	initDataRandom(data, c.N * c.C * c.H * c.W);
-	initDataRandom(weight, c.K * c.C * c.KH * c.KW);
-
-	//printf("Data(Input) \n");
-	//printData(data, c.N, c.C, c.H, c.W, 1);			//입력값 확인
-	//printf("weight \n");
-	//printData(weight, c.K, c.C, c.KH, c.KW, 1);		// 가중치 확인
-	//printData(weight, 1, 1, c.K, c.C * c.KH * c.KW);// 가중치 확인
-
-	convolution(output_h, data, weight, c.N, c.C, c.H, c.W, c.K, c.KH, c.KW, c.SH, c.SW);
-	//printf("ouptut \n");
-	//printData(output_h, c.N, c.K, c.P, c.Q, 1);	// 결과 확인
+	initDataRandom255(input, N * C * H * W);
 
 	//================================================================================================================
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
@@ -133,24 +118,16 @@ int main() {
 	//----------------------------------------------------- 
 
 	cl_mem buffer_I;		// Input data array on the device
-	cl_mem buffer_W;		// Input weight array on the device
-	cl_mem buffer_im2col;	// Output im2col array on the device
-	cl_mem buffer_M;		// Output array on the device
 	cl_mem buffer_O;		// Output array on the device
-
-	buffer_I = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * c.N * c.C * c.H * c.W, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
-	buffer_W = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * c.K * c.C * c.KH * c.KW, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
-	buffer_im2col = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * c.C * c.KH * c.KW * c.N * c.P * c.Q, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
-	buffer_M = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * c.K * c.P * c.Q * c.N, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
-	buffer_O = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * c.K * c.P * c.Q * c.N, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
+	buffer_I = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * N * C * H * W, NULL, &status);		// 디바이스 버퍼 객체 생성(입력용)
+	buffer_O = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * N * C * P * Q, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
 	// STEP 6: Write host data to device buffers
 	//----------------------------------------------------- 
 
-	status = clEnqueueWriteBuffer(cmdQueue, buffer_I, CL_FALSE, 0, sizeof(float) * c.N * c.C * c.H * c.W, data, 0, NULL, NULL); // host (A) -> device (bufferA)전달
-	status = clEnqueueWriteBuffer(cmdQueue, buffer_W, CL_FALSE, 0, sizeof(float) * c.K * c.C * c.KH* c.KW, weight, 0, NULL, NULL); // host (B) -> device (bufferB)전달
+	status = clEnqueueWriteBuffer(cmdQueue, buffer_I, CL_FALSE, 0, sizeof(float) * N * C * H * W, input, 0, NULL, NULL); // host (input) -> device (buffer_I)전달
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
@@ -159,7 +136,6 @@ int main() {
 
 	char* programSource = readSource("bicubic.cl"); // 커널 함수 파일 로드
 	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&programSource, NULL, &status);	// 프로그램 생성
-
 	status = clBuildProgram(program, numDevices, &devices[deviceNum_ - 1], NULL, NULL, NULL);					// 디바이스를 위한 프로그램을 빌드(컴파일)
 
 	if (status != 0) checkError(status, __LINE__);
@@ -167,48 +143,26 @@ int main() {
 	// STEP 8: Create the kernel
 	//----------------------------------------------------- 
 
-	cl_kernel im2col_kernel = NULL;
-	cl_kernel matMul_kernel = NULL;
-	cl_kernel col2im_kernel = NULL;
-	im2col_kernel = clCreateKernel(program, "im2col_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
-	matMul_kernel = clCreateKernel(program, "matMul_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
-	col2im_kernel = clCreateKernel(program, "col2im_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	cl_kernel bicubic_kernel = NULL;
+	bicubic_kernel = clCreateKernel(program, "bicubic2d_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
 	// STEP 9: Set the kernel arguments
 	//----------------------------------------------------- 
-	status = clSetKernelArg(im2col_kernel, 0, sizeof(cl_mem), &buffer_im2col); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 1, sizeof(cl_mem), &buffer_I); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 2, sizeof(cl_int), &c.N); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 3, sizeof(cl_int), &c.K); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 4, sizeof(cl_int), &c.P); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 5, sizeof(cl_int), &c.Q); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 6, sizeof(cl_int), &c.C); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 7, sizeof(cl_int), &c.H); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 8, sizeof(cl_int), &c.W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 9, sizeof(cl_int), &c.KH); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 10, sizeof(cl_int), &c.KW); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 11, sizeof(cl_int), &c.SH); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 12, sizeof(cl_int), &c.SW); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 13, sizeof(cl_int), &c.PL); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(im2col_kernel, 14, sizeof(cl_int), &c.PT); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
 
-	int k_v = c.C * c.KH* c.KW;
-	int n_v = c.P * c.Q * c.N;
-	status = clSetKernelArg(matMul_kernel, 0, sizeof(cl_mem), &buffer_W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(matMul_kernel, 1, sizeof(cl_mem), &buffer_im2col); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(matMul_kernel, 2, sizeof(cl_mem), &buffer_M); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(matMul_kernel, 3, sizeof(cl_int), &c.K); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(matMul_kernel, 4, sizeof(cl_int), &n_v); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(matMul_kernel, 5, sizeof(cl_int), &k_v); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-
-	status = clSetKernelArg(col2im_kernel, 0, sizeof(cl_mem), &buffer_O); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(col2im_kernel, 1, sizeof(cl_mem), &buffer_M); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(col2im_kernel, 2, sizeof(cl_mem), &c.N); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(col2im_kernel, 3, sizeof(cl_int), &c.K); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(col2im_kernel, 4, sizeof(cl_int), &c.P); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(col2im_kernel, 5, sizeof(cl_int), &c.Q); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	// 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 0, sizeof(cl_mem), &buffer_O); // output
+	status = clSetKernelArg(bicubic_kernel, 1, sizeof(cl_mem), &buffer_I); // input
+	status = clSetKernelArg(bicubic_kernel, 2, sizeof(cl_float), &h_scale); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 3, sizeof(cl_float), &w_scale); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 4, sizeof(cl_int), &N); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 5, sizeof(cl_int), &C); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 6, sizeof(cl_int), &H); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 7, sizeof(cl_int), &W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 8, sizeof(cl_int), &P); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 9, sizeof(cl_int), &Q); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(bicubic_kernel, 10, sizeof(cl_int), &num_elements); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
@@ -216,13 +170,7 @@ int main() {
 	//----------------------------------------------------- 
 
 	size_t globalWorkSize[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	globalWorkSize[0] = c.C * c.KH * c.KW * c.N * c.P * c.Q;
-
-	size_t globalWorkSize2[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	globalWorkSize2[0] = c.K * c.N * c.P * c.Q;
-
-	size_t globalWorkSize3[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
-	globalWorkSize3[0] = c.K * c.N * c.P * c.Q;
+	globalWorkSize[0] = num_elements;
 
 	//-----------------------------------------------------
 	// STEP 11: Enqueue the kernel for execution
@@ -230,10 +178,8 @@ int main() {
 
 	cl_event event;
 
-	status = clEnqueueNDRangeKernel(cmdQueue, im2col_kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
-	status = clEnqueueNDRangeKernel(cmdQueue, matMul_kernel, 1, NULL, globalWorkSize2, NULL, 0, NULL, &event); // 커널 실행
-	status = clEnqueueNDRangeKernel(cmdQueue, col2im_kernel, 1, NULL, globalWorkSize3, NULL, 0, NULL, &event); // 커널 실행
-	clWaitForEvents(3, &event);
+	status = clEnqueueNDRangeKernel(cmdQueue, bicubic_kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
+	clWaitForEvents(1, &event);
 	clFinish(cmdQueue);
 
 	cl_ulong time_start;
@@ -247,15 +193,18 @@ int main() {
 	// STEP 12: Read the output buffer back to the host
 	//----------------------------------------------------- 
 
-	status = clEnqueueReadBuffer(cmdQueue, buffer_im2col, CL_TRUE, 0, sizeof(float) * c.C * c.KH * c.KW * c.N * c.P * c.Q, im2col, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
-	status = clEnqueueReadBuffer(cmdQueue, buffer_M, CL_TRUE, 0, sizeof(float) * c.K * c.P * c.Q * c.N, output_m, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
-	status = clEnqueueReadBuffer(cmdQueue, buffer_O, CL_TRUE, 0, sizeof(float) * c.K * c.P * c.Q * c.N, output_o, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
+	status = clEnqueueReadBuffer(cmdQueue, buffer_O, CL_TRUE, 0, sizeof(float) * N * C * P * Q, output, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
 
-	//printData(im2col, 1, 1, c.C * c.KH * c.KW, c.N * c.P * c.Q);
-	//printData(output_m, 1, 1, c.K, c.N * c.P * c.Q);
-	//printData(output_o, c.N, c.K, c.P, c.Q);
+	//printData(output, N, C, P, Q);
+	tofile(input, N * C * H * W, "../Validation_py/Input_C");
+	tofile(output, N * C * P * Q, "../Validation_py/Output_C");
 
-	compareResults(output_h, output_o, c.K * c.P * c.Q * c.N); // Verify the output
+	// python 검증 스크립트 수행
+	printf("\n *Validation with python \n");
+	std::string command = "python ../Validation_py/bicubic.py --N=" + std::to_string(N) + " --C=" + std::to_string(C) + " --H=" + std::to_string(H) + " --W=" + std::to_string(W);
+	const char *cmd = command.c_str();
+	system(cmd); //터미널에 명령어 전달 
+
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
@@ -263,26 +212,18 @@ int main() {
 	//----------------------------------------------------- 
 
 	// Free OpenCL resources
-	clReleaseKernel(im2col_kernel);
-	clReleaseKernel(matMul_kernel);
-	clReleaseKernel(col2im_kernel);
+	clReleaseKernel(bicubic_kernel);
 	clReleaseProgram(program);
 	clReleaseCommandQueue(cmdQueue);
 	clReleaseMemObject(buffer_I);
-	clReleaseMemObject(buffer_W);
-	clReleaseMemObject(buffer_im2col);
-	clReleaseMemObject(buffer_M);
 	clReleaseMemObject(buffer_O);
 	clReleaseContext(context);
 
 	// Free host resources
 	free(platforms);
 	free(devices);
-	free(data);
-	free(weight);
-	free(output_m);
-	free(output_o);
-	free(output_h);
+	free(input);
+	free(output);
 
 	return 0;
 }
