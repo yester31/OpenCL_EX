@@ -52,7 +52,7 @@ __kernel void bicubic2d_kernel(
 	int access_x2 = max(min((in_x + 1), W - 1), 0);
 	int access_x3 = max(min((in_x + 2), W - 1), 0);
 	int cu_idx = n_idx * C * H * W + c_idx * H * W;
-
+#pragma unroll
 	for (int k = 0; k < 4; k++) {
 		int access_y = max(min((in_y - 1 + k), H - 1), 0);
 		coeff[k] = cubic1d(

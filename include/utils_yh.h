@@ -174,6 +174,7 @@ void matMulCpu(float *A, float *B, float *C, int M, int N, int K)
 // CPU에서 Convoltuion 연산
 void convolution(float* output, float* input, float* weight, int IN, int IC, int IH, int IW, int OC, int KH, int KW, int SH, int SW) {
 	printf("===== Conventional Convolution ===== \n");
+	uint64_t start_time1 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 	int OH = ((IH - KH) / SH) + 1;
 	int OW = ((IW - KW) / SW) + 1;
@@ -222,6 +223,9 @@ void convolution(float* output, float* input, float* weight, int IN, int IC, int
 			}
 		}
 	}
+	uint64_t start_time2 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	printf("dur_time(cpu)              = %6.5f [msec] \n", (start_time2 - start_time1) / 1000.f);
+
 }
 
 // CPU에서 Tensor zero padding 연산

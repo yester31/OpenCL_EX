@@ -25,6 +25,7 @@ __kernel void im2col_kernel(
 	idx /= KW;
 	int kh_idx = idx % KH;
 	idx /= KH;
+
 	int k_idx = kw_idx + kh_idx * KW;
 	int c_idx = idx % C;
 	int w_idx = q_idx * SW - left + kw_idx;
