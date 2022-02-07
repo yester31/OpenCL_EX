@@ -1,11 +1,13 @@
 ﻿#pragma once
+#include <CL/cl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <CL/cl.h>
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
+#include <io.h>
 
 // convolution 용 configuration struct
 typedef struct {
@@ -16,10 +18,11 @@ typedef struct {
 	int PL, PR, PT, PB; // pad left, right, top, bottom
 } Conv2dConfig;
 
-void tofile(float* Buffer, int data_count, std::string fname = "../Validation_py/Tensor_from_C") {
+template <typename T>
+void tofile(T* Buffer, int data_count, std::string fname = "../Validation_py/Tensor_from_C") {
 	std::ofstream fs(fname, std::ios::binary);
 	if (fs.is_open())
-		fs.write((const char*)Buffer, data_count * sizeof(float));
+		fs.write((const char*)Buffer, data_count * sizeof(T));
 	fs.close();
 	std::cout << "Done! file production to " << fname << std::endl;
 }
@@ -119,7 +122,8 @@ void printData(float* valueCheckInput, int input_n = 1, int input_c = 1, int inp
 }
 
 // 데이터 초기화(스칼라 값) Default = 1
-void initDataScalar(float* ptr, unsigned int size, float tt = 1) {
+template <typename T>
+void initDataScalar(T* ptr, unsigned int size, float tt = 1) {
 	while (size--) {
 		*ptr++ = tt;
 	}
@@ -251,6 +255,62 @@ void zeroPadding(float*  zeroPaddingOutput, float*  zeroPaddingInput, int input_
 					int ⁠g_idx = w_idx + temp4;
 					int g_idx_Output = w_idx + temp4o;
 					zeroPaddingOutput[g_idx_Output] = zeroPaddingInput[⁠g_idx];
+				}
+			}
+		}
+	}
+}
+
+//파일 이름 가져오기(DFS) window용
+int SearchFile(const std::string& folder_path, std::vector<std::string> &file_names, bool recursive = false) {
+	_finddata_t file_info;
+	std::string any_file_pattern = folder_path + "\\*";
+	intptr_t handle = _findfirst(any_file_pattern.c_str(), &file_info);
+	if (handle == -1) {
+		std::cerr << "folder path not exist: " << folder_path << std::endl;
+		return -1;
+	}
+	do {
+		std::string file_name = file_info.name;
+		if (recursive) {
+			if (file_info.attrib & _A_SUBDIR) {//check whtether it is a sub direcotry or a file
+				if (file_name != "." && file_name != "..") {
+					std::string sub_folder_path = folder_path + "//" + file_name;
+					SearchFile(sub_folder_path, file_names);
+					std::cout << "a sub_folder path: " << sub_folder_path << std::endl;
+				}
+			}
+			else {
+				std::string file_path = folder_path + "/" + file_name;
+				file_names.push_back(file_path);
+			}
+		}
+		else {
+			if (!(file_info.attrib & _A_SUBDIR)) {//check whtether it is a sub direcotry or a file
+				std::string file_path = folder_path + "/" + file_name;
+				file_names.push_back(file_path);
+			}
+		}
+	} while (_findnext(handle, &file_info) == 0);
+	_findclose(handle);
+	return 0;
+}
+
+// 전처리 : BGR -> RGB, NHWC->NCHW, Normalize (0 ~ 1)
+void preprocess(std::vector<float> &output, std::vector<uint8_t> &input, int IN, int IC, int IH, int IW) {
+
+	int C_offset, H_offset, W_offset, g_in, g_out;
+	int N_offset = IH * IW * IC;
+	for (int ⁠n_idx = 0; ⁠n_idx < IN; ⁠n_idx++) {
+		H_offset = ⁠n_idx * N_offset;
+		for (int ⁠h_idx = 0; ⁠h_idx < IH; ⁠h_idx++) {
+			W_offset = ⁠h_idx * IW * IC + H_offset;
+			for (int w_idx = 0; w_idx < IW; w_idx++) {
+				C_offset = w_idx * IC + W_offset;
+				for (int ⁠c_idx = 0; ⁠c_idx < IC; ⁠c_idx++) {
+					g_in = C_offset + 2 - ⁠c_idx;
+					g_out = H_offset + ⁠c_idx * IH * IW + ⁠h_idx * IW + w_idx;
+					output[g_out] = static_cast <float>(input[g_in]) / 255.f;
 				}
 			}
 		}

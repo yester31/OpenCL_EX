@@ -3,7 +3,6 @@
 // System includes
 #include <stdio.h>
 #include <stdlib.h>
-#include <chrono>
 
 // OpenCL includes
 #include <CL/cl.h>
