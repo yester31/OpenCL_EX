@@ -22,9 +22,9 @@
 int main() {
 	// This code executes on the OpenCL host
 	// A[M, K] * B[K, N] = C[M, N]
-	const int M = 1024;
-	const int K = 1024;
-	const int N = 1024;
+	const int M = 64;
+	const int K = 81;
+	const int N = 65536;
 
 	// Host data
 	float *A = NULL;  // Input matrix

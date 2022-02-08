@@ -11,14 +11,16 @@
 // Custom header file includes 
 #include "../include/utils_yh.h"
 
+#define TS 32			// The square-root of the 2D tile-size (== work-group dims)
+
 int main() {
 	// This code executes on the OpenCL host
 	//				  N,C,H,W        K,P,Q, KH,KW, SH,SW, L,R,T,B
 	//Conv2dConfig c = {1,3,1024,1024, 4,0,0, 2, 2,  1, 1,  0,0,0,0};
 	//Conv2dConfig c = {1,1,2160,3840, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
-	Conv2dConfig c = {1,1,2160,3840, 32,0,0, 3, 3,  1, 1,  2,2,2,2};
+	//Conv2dConfig c = {1,1,2160,3840, 32,0,0, 3, 3,  1, 1,  2,2,2,2};
 	//Conv2dConfig c = {1,1,2160,3840, 1,0,0, 5, 5,  1, 1,  2,2,2,2};
-	//Conv2dConfig c = {1,1,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
+	Conv2dConfig c = {1,1,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	//Conv2dConfig c = {1,1,10,10, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;
 	c.Q = ((c.W + c.PL + c.PR - c.KW) / c.SW) + 1;
@@ -184,6 +186,7 @@ int main() {
 	cl_kernel col2im_kernel = NULL;
 	im2col_kernel = clCreateKernel(program, "im2col_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 	matMul_kernel = clCreateKernel(program, "matMul_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	//matMul_kernel = clCreateKernel(program, "tiled_matMul_kernel2", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 	col2im_kernel = clCreateKernel(program, "col2im_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	if (status != 0) checkError(status, __LINE__);
@@ -236,6 +239,11 @@ int main() {
 	size_t globalWorkSize2[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
 	globalWorkSize2[0] = c.K * c.N * c.P * c.Q;
 
+	//const size_t local[2] = { TS, TS };
+	//size_t global_x = (c.K % TS) == 0 ? c.K : ((c.K / TS) + 1) * TS;
+	//size_t global_y = (n_v % TS) == 0 ? n_v : ((n_v / TS) + 1) * TS;
+	//const size_t global[2] = { global_x, global_y };
+
 	size_t globalWorkSize3[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
 	globalWorkSize3[0] = c.K * c.N * c.P * c.Q;
 
@@ -248,7 +256,8 @@ int main() {
 	status = clEnqueueNDRangeKernel(cmdQueue, im2col_kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event[0]); // 커널 실행
 	clReleaseMemObject(buffer_I);
 
-	status = clEnqueueNDRangeKernel(cmdQueue, matMul_kernel, 1, NULL, globalWorkSize2, NULL, 0, NULL, &event[1]); // 커널 실행
+	status = clEnqueueNDRangeKernel(cmdQueue, matMul_kernel, 1, NULL, globalWorkSize2, NULL, 0, NULL, &event[1]); // basic mm 커널 실행
+	//status = clEnqueueNDRangeKernel(cmdQueue, matMul_kernel, 2, NULL, global, local, 0, NULL, &event[1]); // tiled mm 커널 실행
 	clReleaseMemObject(buffer_W);
 	clReleaseMemObject(buffer_im2col);
 

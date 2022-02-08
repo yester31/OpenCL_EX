@@ -43,8 +43,13 @@
 
 
 ##  OpenCL BGR2YCbCr(Completed)
-- transformation image data format BGR to YCbC
+- transformation image data format BGR to YCbC, NHWC->NCHW
 - Add test code(validation results with python BGR2YCbC) 
+
+
+##  OpenCL YCbCr2BGR(Completed)
+- transformation image data format YCbC to BGR, NCHW->NHWC
+- Add test code(validation results with python YCbC2BGR)
 
 
 ##  OpenCL Inference Framework Architecture design (Preparing)

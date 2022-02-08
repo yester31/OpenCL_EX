@@ -1,4 +1,5 @@
 // GEMM Convolution
+#define TS 32
 
 // 1. im2col
 __kernel void im2col_kernel(
@@ -66,7 +67,6 @@ __kernel void matMul_kernel(
 	}
 	C[h_idx * N + w_idx] = sum;
 }
-
 
 // 2. col2im
 __kernel void col2im_kernel(
