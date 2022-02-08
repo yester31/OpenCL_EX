@@ -2,7 +2,13 @@ x64/
 x86/
 .vs/
 *.idea
-Validation_py/Input_C*
-Validation_py/Output_C*
+Validation_py/Input_C
+Validation_py/Output_C
 Validation_py/Input_C_2
 Validation_py/Output_C_2
+Validation_py/Input_C_3
+Validation_py/Output_C_3
+Validation_py/Input_C_4
+Validation_py/Output_C_4
+Validation_py/Input_C_5
+Validation_py/Output_C_5
