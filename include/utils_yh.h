@@ -27,10 +27,11 @@ void tofile(T* Buffer, int data_count, std::string fname = "../Validation_py/Ten
 	std::cout << "Done! file production to " << fname << std::endl;
 }
 
-void fromfile(std::vector<uint8_t>& Buffer, std::string fname = "../Validation_py/Tensor_from_py") {
+template <typename T>
+void fromfile(T* Buffer, int data_count, std::string fname = "../Validation_py/Tensor_from_py") {
 	std::ifstream ifs(fname, std::ios::binary);
 	if (ifs.is_open())
-		ifs.read((char*)Buffer.data(), Buffer.size() * sizeof(uint8_t));
+		ifs.read((char*)Buffer, data_count * sizeof(T));
 	ifs.close();
 	std::cout << "Done! file load from " << fname << std::endl;
 }

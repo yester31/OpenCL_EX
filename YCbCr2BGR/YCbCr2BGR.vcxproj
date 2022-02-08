@@ -139,7 +139,7 @@
       <Device>1</Device>
     </Intel_OpenCL_Build_Rules>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(INTELOCLSDKROOT)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(INTELOCLSDKROOT)include;$(OPENCV_HOME)/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>__x86_64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>MaxSpeed</Optimization>
       <MinimalRebuild>true</MinimalRebuild>
@@ -150,11 +150,12 @@
       <PrecompiledHeader />
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(INTELOCLSDKROOT)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OpenCL.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(INTELOCLSDKROOT)lib\x64;$(OPENCV_HOME)/x64/vc15/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>OpenCL.lib;opencv_world345.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <SubSystem>Console</SubSystem>
     </Link>
     <PostBuildEvent>
       <Command>If exist "*.cl" copy "*.cl" "$(OutDir)\"</Command>
@@ -165,7 +166,7 @@
       <Device>1</Device>
     </Intel_OpenCL_Build_Rules>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(INTELOCLSDKROOT)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(INTELOCLSDKROOT)include;$(OPENCV_HOME)/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>__x86_64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>true</MinimalRebuild>
@@ -176,24 +177,23 @@
       <PrecompiledHeader />
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(INTELOCLSDKROOT)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OpenCL.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(INTELOCLSDKROOT)lib\x64;$(OPENCV_HOME)/x64/vc15/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>OpenCL.lib;opencv_world345d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
     </Link>
     <PostBuildEvent>
       <Command>If exist "*.cl" copy "*.cl" "$(OutDir)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="GPUOpenCLProjectforWindows.cpp" />
-    <ClCompile Include="utils.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GPUOpenCLProjectforWindows.h" />
-    <ClInclude Include="utils.h" />
+    <Intel_OpenCL_Build_Rules Include="ycbcr2bgr.cl" />
   </ItemGroup>
   <ItemGroup>
-    <Intel_OpenCL_Build_Rules Include="Template.cl" />
+    <ClInclude Include="..\include\utils_yh.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

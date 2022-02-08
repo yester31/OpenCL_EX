@@ -15,7 +15,9 @@ int main() {
 	// This code executes on the OpenCL host
 	//				  N,C,H,W        K,P,Q, KH,KW, SH,SW, L,R,T,B
 	//Conv2dConfig c = {1,3,1024,1024, 4,0,0, 2, 2,  1, 1,  0,0,0,0};
-	Conv2dConfig c = {1,1,2160,3840, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
+	//Conv2dConfig c = {1,1,2160,3840, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
+	Conv2dConfig c = {1,1,2160,3840, 32,0,0, 3, 3,  1, 1,  2,2,2,2};
+	//Conv2dConfig c = {1,1,2160,3840, 1,0,0, 5, 5,  1, 1,  2,2,2,2};
 	//Conv2dConfig c = {1,1,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	//Conv2dConfig c = {1,1,10,10, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;

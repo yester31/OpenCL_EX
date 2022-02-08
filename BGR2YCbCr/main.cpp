@@ -37,6 +37,7 @@ int main()
 		int offset = idx * H * W * 3;
 		memcpy(input + offset, ori_img.data, H * W * 3);
 	}
+
 	//initDataScalar(input, N * C * H * W, 3);
 	//initDataRandom255(input, N * C * H * W);
 	//std::vector<float> output(input.size());
