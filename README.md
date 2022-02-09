@@ -9,6 +9,7 @@
 ## OpenCL Vector Add(Completed)
 - vector sum
 
+
 ##  OpenCL Matrix Multiplication(in progress)
 - MatrixMultiplication project
   1. Naive Matrix Multiplication (Completed)
@@ -39,7 +40,12 @@
 
 ##  OpenCL Bicubic Interpolation(Completed)
 - Bicubic Interpolation
-- Add test code(validation results with pytorch bicubic interpolation) 
+- Add test code(validation results with pytorch Bicubic Interpolation) 
+
+
+##  OpenCL Nearnest Neighbor Interpolation(Completed)
+- Nearnest Neighbor Interpolation
+- Add test code(validation results with pytorch Nearnest Neighbor Interpolation) 
 
 
 ##  OpenCL BGR2YCbCr(Completed)
