@@ -58,6 +58,11 @@
 - Add test code(validation results with python YCbC2BGR)
 
 
+##  OpenCL Concat (Completed)
+- Concatenate two tensor for channal side
+- Add test code(validation results with python concat)
+
+
 ##  OpenCL Inference Framework Architecture design (Preparing)
 *
 
