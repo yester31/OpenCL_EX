@@ -63,14 +63,24 @@
 - Add test code(validation results with python concat)
 
 
+##  OpenCL Batch Normalization (Preparing)
+
+##  OpenCL Max Pool (Preparing)
+
+##  OpenCL Adaptive Average Pool (Preparing)
+
+##  OpenCL Linear(Dense) (Preparing)
+
+
 ##  OpenCL Inference Framework Architecture design (Preparing)
 *
 
 
-##  OpenCL Sparse Matrix Multiplication (Plan)
+##  OpenCL resnet18 model (Plan)
 *
 
-
+##  OpenCL yolov5s model (Plan)
+*
 
 
 ## Reference
