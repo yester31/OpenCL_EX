@@ -26,11 +26,11 @@ int main() {
 	printf("input[%4d,%4d,%4d,%4d] -> output[%4d,%4d,%4d,%4d]\n\n", N, C, H, W, N, C, P, Q);
 
 	// Host data
-	float *input = NULL;		// Input matrix
+	uint8_t *input = NULL;		// Input matrix
 	float *output = NULL;	// Host Output matrix
 
 	// Allocate space for input/output data
-	input = (float*)malloc(sizeof(float)* N * C * H * W);		// input [N, C, H, W]
+	input = (uint8_t*)malloc(sizeof(uint8_t)* N * C * H * W);		// input [N, C, H, W]
 	output = (float*)malloc(sizeof(float)* N * C * P * Q);		// Ouput [N, C, P, Q]
 
 	// input data 초기화
@@ -126,7 +126,7 @@ int main() {
 
 	cl_mem buffer_I;		// Input data array on the device
 	cl_mem buffer_O;		// Output array on the device
-	buffer_I = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * N * C * H * W, NULL, &status);		// 디바이스 버퍼 객체 생성(입력용)
+	buffer_I = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(uint8_t) * N * C * H * W, NULL, &status);		// 디바이스 버퍼 객체 생성(입력용)
 	buffer_O = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * N * C * P * Q, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
 
 	if (status != 0) checkError(status, __LINE__);
@@ -134,7 +134,7 @@ int main() {
 	// STEP 6: Write host data to device buffers
 	//----------------------------------------------------- 
 
-	status = clEnqueueWriteBuffer(cmdQueue, buffer_I, CL_FALSE, 0, sizeof(float) * N * C * H * W, input, 0, NULL, NULL); // host (input) -> device (buffer_I)전달
+	status = clEnqueueWriteBuffer(cmdQueue, buffer_I, CL_FALSE, 0, sizeof(uint8_t) * N * C * H * W, input, 0, NULL, NULL); // host (input) -> device (buffer_I)전달
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
@@ -186,8 +186,10 @@ int main() {
 	cl_event event;
 
 	status = clEnqueueNDRangeKernel(cmdQueue, bicubic_kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &event); // 커널 실행
-	clWaitForEvents(1, &event);
-	clFinish(cmdQueue);
+	if (status != 0) checkError(status, __LINE__);
+	status = clWaitForEvents(1, &event);
+	if (status != 0) checkError(status, __LINE__);
+	status = clFinish(cmdQueue);
 
 	cl_ulong time_start;
 	cl_ulong time_end;

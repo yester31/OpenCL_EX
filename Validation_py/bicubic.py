@@ -46,6 +46,6 @@ if __name__ == '__main__':
     H = args.H
     W = args.W
     output_c = np.fromfile(os.path.join(dir_path, 'Output_C'), dtype=np.float32)
-    input_c = np.fromfile(os.path.join(dir_path, 'Input_C'), dtype=np.float32)
+    input_c = np.fromfile(os.path.join(dir_path, 'Input_C'), dtype=np.uint8)
 
     bicubic_torch(input_c, output_c, N, C, H, W)

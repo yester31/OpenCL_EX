@@ -11,7 +11,7 @@ __inline float cubic1d(float x0, float x1, float x2, float x3, float t) {
 
 
 // 1. bicubic2d
-__kernel void bicubic2d_kernel(
+__kernel void bicubic_kernel(
 	__global float *output,
 	//__global float *input,
 	__global unsigned char *input,
