@@ -1,4 +1,4 @@
-// GEMM Convolution
+ï»¿// GEMM Convolution
 #define TS 32
 
 // 1. im2col
@@ -12,7 +12,7 @@ __kernel void im2col_kernel(
 	int SH, int SW, 
 	int left, int top)
 {
-	// Get the work-item¡¯s unique ID
+	// Get the work-itemâ€™s unique ID
 	int tid = get_global_id(0);
 	if (tid >= C * KH * KW * N * P * Q) return;
 
@@ -55,7 +55,7 @@ __kernel void matMul_kernel(
 	__global float *C,
 	int M, int N, int K)
 {
-	// Get the work-item¡¯s unique ID
+	// Get the work-itemâ€™s unique ID
 	int idx = get_global_id(0);
 	if (idx >= M * N) return;
 
@@ -88,4 +88,44 @@ __kernel void col2im_kernel(
 	int n_idx = k_idx * N * P * Q + b_idx * P * Q + p_idx * Q + q_idx;
 
 	output[s_idx] = input[n_idx];
+}
+
+// on construct....
+__kernel void conv2d_kernel(
+	__global float *output,
+	__global float *input,
+	__global float *weight,
+	int N, int C, int H, int W,
+	int K, int P, int Q,
+	int KH, int KW,
+	int SH, int SW,
+	int left, int top) {
+
+	int tid = get_global_id(0);
+	if (tid >= N * K  *P * Q) return;
+
+	int q_idx = tid % Q;// Q 
+	int idx = tid / Q;
+	int p_idx = idx % P;// P 
+	idx /= P;
+	int k_idx = idx % K;// K
+	int n_idx = idx / K;// N
+
+	float sum = 0;
+	for (int c_idx = 0; c_idx < C; c_idx++) {
+		int offset_i = c_idx * H * W + n_idx * C * H * W;
+		int offset_w = c_idx * KH * KW + k_idx * C * KH * KW;
+
+		for (int y = p_idx * SH; y < p_idx * SH + KH; y++) {
+			for (int x = q_idx * SW; x < q_idx * SW + KW; x++) {
+
+				int i_idx = (x + left) + (y + top) * W + offset_i;
+
+				int w_idx = (x - q_idx * SW) + (y - p_idx * SH) * KH + offset_w;
+
+				sum += input[i_idx] * weight[w_idx];
+			}
+		}
+		output[tid] += sum;
+	}
 }

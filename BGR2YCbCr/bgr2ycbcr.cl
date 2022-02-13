@@ -1,5 +1,5 @@
 
-// Convert1 (NHWC->NCHW, BGR->YCbCr, [0, 255]->[0, 1](Normalize))
+// Convert1 (NHWC->NCHW, BGR->YCbCr)
 __kernel void bgr2ycbcr_kernel(
 	__global float *output,
 	__global unsigned char *input,
@@ -24,7 +24,7 @@ __kernel void bgr2ycbcr_kernel(
 	output[gidx2] = 128.f + ((112.439f * input[iidx + 2]) - (94.154f * input[iidx + 1]) - (18.285f  * input[iidx])) / 256.f;
 }
 
-// Convert1 (NHWC, BGR->YCbCr, [0, 255]->[0, 1](Normalize))
+// Convert1 (NHWC, BGR->YCbCr)
 __kernel void bgr2ycbcr_kernel2(
 	__global float *output,
 	__global unsigned char *input,

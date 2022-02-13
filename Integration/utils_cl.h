@@ -11,13 +11,22 @@
 // 데이터 랜덤 값 초기화 
 template <typename T>
 void initDataRandom255(T* ptr, unsigned int size) {
-	char tt = 1;
 	srand(777); // rand seed 값 전달
 	while (size--) {
-		*ptr++ = rand() % 255; // (0 - 255 사이 char 데이터 초기화)
+		*ptr++ = rand() % 255; // (0 - 255 데이터 초기화)
 	}
 }
 
+// 데이터 랜덤 값 초기화
+template <typename T>
+void initDataRandomZP1(T* ptr, unsigned int size) {
+	srand(777); // rand seed 값 전달
+	while (size--) {
+		*ptr++ = (rand() % 255) / 255.f; // (0 - 1 데이터 초기화)
+	}
+}
+
+// 전달 받은 데이터 배열을 파일로 생성
 template <typename T>
 void tofile(T* Buffer, int data_count, std::string fname = "../Validation_py/Tensor_from_C") {
 	std::ofstream fs(fname, std::ios::binary);
@@ -27,6 +36,7 @@ void tofile(T* Buffer, int data_count, std::string fname = "../Validation_py/Ten
 	std::cout << "Done! file production to " << fname << std::endl;
 }
 
+// 전달 받은 경로의 파일을 로드하여 배열로 생성
 template <typename T>
 void fromfile(T* Buffer, int data_count, std::string fname = "../Validation_py/Tensor_from_py") {
 	std::ifstream ifs(fname, std::ios::binary);
@@ -36,30 +46,17 @@ void fromfile(T* Buffer, int data_count, std::string fname = "../Validation_py/T
 	std::cout << "Done! file load from " << fname << std::endl;
 }
 
-
-// Macros for OpenCL versions
-#define OPENCL_VERSION_1_2  1.2f
-#define OPENCL_VERSION_2_0  2.0f
-
-// convolution 용 configuration struct
-typedef struct {
-	int N, C, H, W;	// data [N,C,H,W]
-	int K, P, Q;	// output [N,K,P,Q]
-	int KH, KW;		// weight height, width
-	int SH, SW;		// stride 
-	int PL, PR, PT, PB; // pad left, right, top, bottom
-} Conv2dConfig;
-
+// 각 레이어에 대한 입력과 출력을 비롯한 여러 파라미터 설정 값
 class Configs {
 
 public:
-	int N, C, H, W;	// data [N,C,H,W]
+	int N, C, H, W;		// data [N,C,H,W]
 	int K, P, Q;		// output [N,K,P,Q]
-	int KH, KW;		// weight height, width
-	int SH, SW;		// stride 
+	int KH, KW;			// weight height, width
+	int SH, SW;			// stride 
 	int PL, PR, PT, PB; // pad left, right, top, bottom
-	int MODE; // 0 : Conv2d, 1 : Bicubic, 2 : Convert
-	int sclae_factor;
+	int MODE;			// 0 : Conv2d, 1 : Bicubic, 2 : Convert
+	int scale_factor;	// for interpolation
 
 	Configs(int N_, int C_, int H_, int W_, int K_, int KH_, int KW_, int SH_ = 1, int SW_ = 1, int PL_ = 0, int PR_ = 0, int PT_ = 0, int PB_ = 0, int MODE_ = 0)
 		: N(N_), C(C_), H(H_), W(W_), K(K_), KH(KH_), KW(KW_), SH(SH_), SW(SW_), PL(PL_), PR(PR_), PT(PT_), PB(PB_), MODE(MODE_)
@@ -68,33 +65,6 @@ public:
 		Q = ((W_ + PL_ + PR_ - KW_) / SW_) + 1;
 
 		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]  kernel[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q, K, C, KH, KW);
-	};
-
-	Configs(int N_, int C_, int H_, int W_, int K_, int P_, int Q_, int MODE_ = 4)
-		: N(N_), C(C_), H(H_), W(W_), K(K_), P(P_), Q(Q_), MODE(MODE_)
-	{
-		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q);
-	};
-
-	Configs(Configs &cfg, int ic, int oc, int MODE_ = 4)
-		: N(cfg.N), C(ic), H(cfg.H), W(cfg.W), K(oc), P(cfg.H), Q(cfg.W), MODE(MODE_)
-	{
-		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q);
-	};
-
-	Configs(int N_, int C_, int H_, int W_, int sclae_factor_, int MODE_ = 1)
-		: N(N_), C(C_), H(H_), W(W_), K(C_), sclae_factor(sclae_factor_), MODE(MODE_)
-	{
-		P = H_ * sclae_factor_;
-		Q = W_ * sclae_factor_;
-
-		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]  sclae_factor_(%4d,%4d)\n", N, C, H, W, N, K, P, Q, sclae_factor_, sclae_factor_);
-	};
-
-	Configs(Configs &cfg, int MODE_ = 2)
-		: N(cfg.N), C(cfg.K), H(cfg.P), W(cfg.Q), K(cfg.K), P(cfg.P), Q(cfg.Q), MODE(MODE_)
-	{
-		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q);
 	};
 
 	Configs(Configs &cfg, int K_, int KH_, int KW_, int SH_ = 1, int SW_ = 1, int PL_ = 0, int PR_ = 0, int PT_ = 0, int PB_ = 0, int MODE_ = 0)
@@ -109,6 +79,34 @@ public:
 
 		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]  kernel[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q, K, C, KH, KW);
 	};
+
+	Configs(int N_, int C_, int H_, int W_, int scale_factor_, int MODE_ = 1)
+		: N(N_), C(C_), H(H_), W(W_), K(C_), scale_factor(scale_factor_), MODE(MODE_)
+	{
+		P = H_ * scale_factor_;
+		Q = W_ * scale_factor_;
+
+		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]  sclae_factor_(%4d,%4d)\n", N, C, H, W, N, K, P, Q, scale_factor_, scale_factor_);
+	};
+
+	Configs(Configs &cfg, int MODE_ = 2)
+		: N(cfg.N), C(cfg.K), H(cfg.P), W(cfg.Q), K(cfg.K), P(cfg.P), Q(cfg.Q), MODE(MODE_)
+	{
+		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q);
+	};
+
+	Configs(int N_, int C_, int H_, int W_, int K_, int P_, int Q_, int MODE_ = 4)
+		: N(N_), C(C_), H(H_), W(W_), K(K_), P(P_), Q(Q_), MODE(MODE_)
+	{
+		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q);
+	};
+
+	Configs(Configs &cfg, int ic, int oc, int MODE_ = 4)
+		: N(cfg.N), C(ic), H(cfg.H), W(cfg.W), K(oc), P(cfg.H), Q(cfg.W), MODE(MODE_)
+	{
+		printf("cfg input[%4d,%4d,%4d,%4d]  output[%4d,%4d,%4d,%4d]\n", N, C, H, W, N, K, P, Q);
+	};
+
 };
 
 
@@ -118,22 +116,21 @@ char* readSource(char* kernelPath, size_t& size) {
 	cl_int status;
 	FILE *fp;
 	char *source;
-	//long int size;
-	//printf("Program file is: %s\n", kernelPath);
+	printf("[FILE LOAD] OpenCL file is: %s\n\n", kernelPath);
 
 	fp = fopen(kernelPath, "r");
 	if (!fp) {
-		printf("Could not open kernel file\n");
+		printf("[ERROR] Could not open kernel file\n");
 		exit(-1);
 	}
 	status = fseek(fp, 0, SEEK_END);
 	if (status != 0) {
-		printf("Error seeking to end of file\n");
+		printf("[ERROR] Error seeking to end of file\n");
 		exit(-1);
 	}
 	size = ftell(fp);
 	if (size < 0) {
-		printf("Error getting file position\n");
+		printf("[ERROR] Error getting file position\n");
 		exit(-1);
 	}
 
@@ -145,7 +142,7 @@ char* readSource(char* kernelPath, size_t& size) {
 	}
 
 	if (source == NULL) {
-		printf("Error allocating space for the kernel source\n");
+		printf("[ERROR] Error allocating space for the kernel source\n");
 		exit(-1);
 	}
 
@@ -154,56 +151,6 @@ char* readSource(char* kernelPath, size_t& size) {
 	fclose(fp);
 	return source;
 }
-#define MAX_BINARY_SIZE (0x100000)
-char* readSource2(char* kernelPath, size_t& size) {
-
-	cl_int status;
-	FILE *fp;
-	char *source;
-	//printf("Program file is: %s\n", kernelPath);
-
-	fp = fopen(kernelPath, "r");
-	if (!fp) {
-		printf("Could not open kernel file\n");
-		exit(-1);
-	}
-
-	source = (char *)malloc(MAX_BINARY_SIZE);
-	size = fread(source, 1, MAX_BINARY_SIZE, fp);
-	fclose(fp);
-	return source;
-}
-
-int ReadSourceFromFile(const char* fileName, char** source, size_t* sourceSize)
-{
-	int errorCode = CL_SUCCESS;
-
-	FILE* fp = NULL;
-	fopen_s(&fp, fileName, "rb");
-	if (fp == NULL)
-	{
-		printf("Error: Couldn't find program source file '%s'.\n", fileName);
-		errorCode = CL_INVALID_VALUE;
-	}
-	else {
-		fseek(fp, 0, SEEK_END);
-		*sourceSize = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-
-		*source = new char[*sourceSize];
-		if (*source == NULL)
-		{
-			printf("Error: Couldn't allocate %d bytes for program source from file '%s'.\n", *sourceSize, fileName);
-			errorCode = CL_OUT_OF_HOST_MEMORY;
-		}
-		else {
-			fread(*source, 1, *sourceSize, fp);
-		}
-	}
-	return errorCode;
-}
-
-
 
 
 // Print an error message to screen (only if it occurs)
@@ -280,8 +227,10 @@ void checkError(cl_int error, int line) {
 	}
 }
 
-struct ocl_args_d_t
+// OpenCL 세팅 클래스
+class ocl_args_d_t
 {
+public :
 	ocl_args_d_t();
 	~ocl_args_d_t();
 
@@ -292,6 +241,7 @@ struct ocl_args_d_t
 	cl_command_queue commandQueue;      // hold the commands-queue handler
 	cl_program       program;           // hold the program handler
 	cl_platform_id*  platforms;         // platform handlers array ptr
+	cl_uint          numPlatforms;      // 
 	cl_event *       events;
 	int events_count;
 	int platformNum_;					// choiced platform , start from 1
@@ -304,6 +254,7 @@ events(NULL), events_count(0), numDevices(0), platformNum_(2), deviceNum_(1) {}
 ocl_args_d_t::~ocl_args_d_t()
 {
 	cl_int status = CL_SUCCESS;
+
 	if (program) status = clReleaseProgram(program);
 	if (status != 0) checkError(status, __LINE__);
 
@@ -318,6 +269,8 @@ ocl_args_d_t::~ocl_args_d_t()
 
 	if (context) status = clReleaseContext(context);
 	if (status != 0) checkError(status, __LINE__);
+
+	free(platforms);
 }
 
 
@@ -351,18 +304,18 @@ char* loadClFiles(char**cl_files, int file_count, size_t &fileSizes) {
 }
 
 void cl_setting(ocl_args_d_t &ocl, cl_int &status, char *clKernelSource, size_t &clKernelSource_size, bool cl_online_compile = true, bool manual_selection = false) {
-
-	cl_uint numPlatforms = 0;
-	status = clGetPlatformIDs(0, NULL, &numPlatforms);							// 사용 가능한 플랫폼 수 확인
-	ocl.platforms = (cl_platform_id*)malloc(sizeof(cl_platform_id) * numPlatforms);	// 플랫폼 정보를 가져올 수 있도록 공간 할당
-	status = clGetPlatformIDs(numPlatforms, ocl.platforms, NULL);					// 플랫폼 정보를 가져옴
+	printf("[SETTING] OpenCL settring START !!!\n");
+	status = clGetPlatformIDs(0, NULL, &ocl.numPlatforms);								// 사용 가능한 플랫폼 수 확인
+	ocl.platforms = (cl_platform_id*)malloc(sizeof(cl_platform_id) * ocl.numPlatforms);	// 플랫폼 정보를 가져올 수 있도록 공간 할당
+	status = clGetPlatformIDs(ocl.numPlatforms, ocl.platforms, NULL);					// 플랫폼 정보를 가져옴
+	if (status != 0) checkError(status, __LINE__);
 
 	char* value;					// devcie 정보 문자열
 	size_t valueSize;				// devcie 정보 문자열 크기
 	cl_uint maxComputeUnits;
 
 	if (manual_selection) {
-		for (int i = 0; i < numPlatforms; i++) {
+		for (int i = 0; i < ocl.numPlatforms; i++) {
 			// get all devices
 			status = clGetDeviceIDs(ocl.platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &ocl.numDevices);
 			ocl.devices = (cl_device_id*)malloc(sizeof(cl_device_id) * ocl.numDevices);
@@ -398,7 +351,7 @@ void cl_setting(ocl_args_d_t &ocl, cl_int &status, char *clKernelSource, size_t 
 				printf(" %d.%d Parallel compute units: %d\n", i + 1, 4, maxComputeUnits);
 			}
 		}
-		printf("\n\nSELECT PLATFORM('1' ~ '%d') : ", numPlatforms);
+		printf("\n\nSELECT PLATFORM('1' ~ '%d') : ", ocl.numPlatforms);
 		scanf("%d", &ocl.platformNum_);
 		printf("\n");
 		printf("SELECT DEVICE('1' ~ '%d') : ", ocl.numDevices);
@@ -406,21 +359,29 @@ void cl_setting(ocl_args_d_t &ocl, cl_int &status, char *clKernelSource, size_t 
 		printf("\n");
 	}
 	else {
-
 		status = clGetDeviceIDs(ocl.platforms[ocl.platformNum_ - 1], CL_DEVICE_TYPE_ALL, 0, NULL, &ocl.numDevices);
 		ocl.devices = (cl_device_id*)malloc(sizeof(cl_device_id) * ocl.numDevices);
 		status = clGetDeviceIDs(ocl.platforms[ocl.platformNum_ - 1], CL_DEVICE_TYPE_ALL, ocl.numDevices, ocl.devices, NULL);
+		if (status != 0) checkError(status, __LINE__);
 
 		status = clGetDeviceInfo(ocl.devices[ocl.deviceNum_ - 1], CL_DEVICE_NAME, 0, NULL, &valueSize);
 		value = (char*)malloc(valueSize);
 		status = clGetDeviceInfo(ocl.devices[ocl.deviceNum_ - 1], CL_DEVICE_NAME, valueSize, value, NULL);
+		if (status != 0) checkError(status, __LINE__);
 		printf("platform %d. Device %d: %s\n", ocl.platformNum_, ocl.deviceNum_, value);
 		free(value);
 	}
 
-	status = clGetDeviceIDs(ocl.platforms[ocl.platformNum_ - 1], CL_DEVICE_TYPE_ALL, ocl.numDevices, ocl.devices, NULL);	// 선택한 디바이스 정보를 가져옴
-	ocl.context = clCreateContext(NULL, 1, &ocl.devices[ocl.deviceNum_ - 1], NULL, NULL, &status);			// context 생성 및 (원하는)디바이스와 연결
-	ocl.commandQueue = clCreateCommandQueue(ocl.context, ocl.devices[ocl.deviceNum_ - 1], CL_QUEUE_PROFILING_ENABLE, &status);			// 명령어 큐 생성 및 (원하는)디바이스와 연결
+	// 선택한 디바이스 정보를 가져옴
+	status = clGetDeviceIDs(ocl.platforms[ocl.platformNum_ - 1], CL_DEVICE_TYPE_ALL, ocl.numDevices, ocl.devices, NULL);
+	if (status != 0) checkError(status, __LINE__);
+
+	// context 생성 및 (원하는)디바이스와 연결
+	ocl.context = clCreateContext(NULL, 1, &ocl.devices[ocl.deviceNum_ - 1], NULL, NULL, &status);
+	if (status != 0) checkError(status, __LINE__);
+
+	// 명령어 큐 생성 및 (원하는)디바이스와 연결
+	ocl.commandQueue = clCreateCommandQueue(ocl.context, ocl.devices[ocl.deviceNum_ - 1], CL_QUEUE_PROFILING_ENABLE, &status);	
 	if (status != 0) checkError(status, __LINE__);
 
 	if (cl_online_compile) {
@@ -431,6 +392,6 @@ void cl_setting(ocl_args_d_t &ocl, cl_int &status, char *clKernelSource, size_t 
 		cl_int binary_status;
 		ocl.program = clCreateProgramWithBinary(ocl.context, 1, &ocl.devices[ocl.deviceNum_ - 1], (const size_t *)&clKernelSource_size, (const unsigned char**)&clKernelSource, &binary_status, &status);	// 프로그램 생성
 	}
-	printf("OpenCL settring done !!!\n");
+	printf("[SETTING] OpenCL settring END !!!\n\n");
 	if (status != 0) checkError(status, __LINE__);
 }

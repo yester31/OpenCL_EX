@@ -1,5 +1,5 @@
 // TODO: Add OpenCL kernel code here.
-// split (NCHW->N1HW)
+// split (N1HW->N3HW)
 __kernel void combine_first_channel_kernel(
 	__global float *output,
 	__global float *input,
