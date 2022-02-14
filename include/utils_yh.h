@@ -156,6 +156,15 @@ void initDataRandom255(T* ptr, unsigned int size) {
 	}
 }
 
+// 데이터 랜덤 값 초기화
+template <typename T>
+void initDataRandomZP1(T* ptr, unsigned int size) {
+	srand(777); // rand seed 값 전달
+	while (size--) {
+		*ptr++ = (rand() % 255) / 255.f; // (0 - 1 데이터 초기화)
+	}
+}
+
 
 // CPU에서 행렬곱 연산 (matrix multiplication on cpu)
 void matMulCpu(float *A, float *B, float *C, int M, int N, int K)
@@ -177,7 +186,7 @@ void matMulCpu(float *A, float *B, float *C, int M, int N, int K)
 }
 
 // CPU에서 Convoltuion 연산
-void convolution(float* output, float* input, float* weight, int IN, int IC, int IH, int IW, int OC, int KH, int KW, int SH, int SW) {
+void convolution(float* output, float* input, float* weight, float* bias, int IN, int IC, int IH, int IW, int OC, int KH, int KW, int SH, int SW) {
 	printf("===== Conventional Convolution ===== \n");
 	uint64_t start_time1 = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
@@ -192,7 +201,6 @@ void convolution(float* output, float* input, float* weight, int IN, int IC, int
 	for (int ⁠n_idx = 0; ⁠n_idx < IN; ⁠n_idx++) {
 		C_offset_i = ⁠n_idx * N_offset_i;
 		C_offset_o = ⁠n_idx * N_offset_o;
-
 		for (int k_idx = 0; k_idx < OC; k_idx++) {
 			C_offset_k = k_idx * N_offset_k;
 			H_offset_o = k_idx * OH * OW + C_offset_o;
@@ -203,28 +211,24 @@ void convolution(float* output, float* input, float* weight, int IN, int IC, int
 
 				for (int rowStride = 0; rowStride < OH; rowStride++) {
 					W_offset_o = rowStride * OW + H_offset_o;
-
 					for (int colStride = 0; colStride < OW; colStride++) {
 						float sum = 0;
 						g_idx_o = colStride + W_offset_o;
-
 						for (int y = rowStride * SH; y < rowStride * SH + KH; y++) {
 							W_offset_i = y * IW + H_offset_i;
 							W_offset_k = (y - rowStride * SH) * KH + H_offset_k;
-
 							for (int x = colStride * SW; x < colStride * SW + KW; x++) {
-
 								⁠g_idx_i = x + W_offset_i;
 								g_idx_k = (x - colStride * SW) + W_offset_k;
 								sum += input[⁠g_idx_i] * weight[g_idx_k];
-
 							}
 						}
 
+						if(⁠c_idx == 0)	sum += bias[k_idx];
 						output[g_idx_o] += sum;
-
 					}
 				}
+
 			}
 		}
 	}

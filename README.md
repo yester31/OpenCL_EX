@@ -33,7 +33,7 @@
 1. GEMM Convolution(Completed)
    - process : im2col -> Matrix Multiplication -> col2im
    - Matrix Multiplication can be changed to better logic
-2. Conventional Convolution(Preparing)
+2. Conventional Convolution(Completed)
 3. FFT Convolution(Plan)
 4. Winograd Convolution(Plan)
 

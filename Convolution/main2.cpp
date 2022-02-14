@@ -20,9 +20,9 @@ int main() {
 	//Conv2dConfig c = {1,1,2160,3840, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	//Conv2dConfig c = {1,1,2160,3840, 32,0,0, 3, 3,  1, 1,  2,2,2,2};
 	//Conv2dConfig c = {1,1,2160,3840, 1,0,0, 5, 5,  1, 1,  2,2,2,2};
-	//Conv2dConfig c = { 1,1,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4 };
+	Conv2dConfig c = { 1,3,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4 };
 	//Conv2dConfig c = {1,1,10,10, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
-	Conv2dConfig c = {1,1,4,4, 1,0,0, 3, 3,  1, 1,  0,0,0,0 };
+	//Conv2dConfig c = {1,3,3,3, 2,0,0, 2, 2,  1, 1,  1,1,1,1 };
 	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;
 	c.Q = ((c.W + c.PL + c.PR - c.KW) / c.SW) + 1;
 	printf(" input[%4d,%4d,%4d,%4d] kernel[%4d,%4d,%4d,%4d] output[%4d,%4d,%4d,%4d]\n\n", c.N, c.C, c.H, c.W, c.K, c.C, c.KH, c.KW, c.N, c.K, c.P, c.Q);
@@ -31,12 +31,14 @@ int main() {
 	float *data = NULL;			// Input matrix
 	float *data_pad = NULL;		// Input matrix (WITH PAD)
 	float *weight = NULL;		// weight matrix
+	float *bias = NULL;		// weight matrix
 	float *output_o = NULL;	// Device Output matrix
 	float *output_h = NULL;	// Host Output matrix
 
 	// Allocate space for input/output data
 	data = (float*)malloc(sizeof(float)* c.N * c.C * c.H * c.W);		// input data [N,C,H,W]
 	weight = (float*)malloc(sizeof(float) * c.K * c.C * c.KH * c.KW);	// weight [K,C,KH,KW]
+	bias = (float*)malloc(sizeof(float) * c.K);	// weight [K,C,KH,KW]
 	data_pad = (float*)calloc(c.N * c.C * (c.H + c.PT + c.PB) * (c.W + c.PL + c.PR), sizeof(float)); // input data [N,C,H+PT+PB,W+PL+PR]
 	output_o = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // (할당된 공간의 값을 0 초기화) 
 	output_h = (float*)calloc(c.K * c.P * c.Q * c.N, sizeof(float)); // 결과
@@ -45,15 +47,16 @@ int main() {
 	//initDataStep(data, c.N * c.C * c.H * c.W);
 	//initDataStep(weight, c.K * c.C * c.KH * c.KW);
 
-	initDataRandom(data, c.N * c.C * c.H * c.W);
-	initDataRandom(weight, c.K * c.C * c.KH * c.KW);
+	initDataRandomZP1(data, c.N * c.C * c.H * c.W);
+	initDataRandomZP1(weight, c.K * c.C * c.KH * c.KW);
+	initDataRandomZP1(bias, c.K);
 	printf("Initialize data completed\n");
 
 	//printf("Data(Input) \n");
-	//printData(data, c.N, c.C, c.H, c.W, 1);			//입력값 확인
+	//printData(data, c.N, c.C, c.H, c.W);			//입력값 확인
 	//printf("weight \n");
-	//printData(weight, c.K, c.C, c.KH, c.KW, 1);		// 가중치 확인
-	//printData(weight, 1, 1, c.K, c.C * c.KH * c.KW);	// 가중치 확인
+	//printData(weight, c.K, c.C, c.KH, c.KW);		// 가중치 확인
+	//printData(bias, 1, 1, 1, c.K);	// 가중치 확인
 
 	//================================================================================================================
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
@@ -145,6 +148,7 @@ int main() {
 
 	cl_mem 	buffer_I = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * c.N * c.C * c.H * c.W, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
 	cl_mem 	buffer_W = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * c.K * c.C * c.KH * c.KW, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
+	cl_mem 	buffer_B = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * c.K, NULL, &status);	// 디바이스 버퍼 객체 생성(입력용)
 	cl_mem 	buffer_O = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * c.K * c.P * c.Q * c.N, NULL, &status);	// 디바이스 버퍼 객체 생성(출력용)
 
 	if (status != 0) checkError(status, __LINE__);
@@ -154,6 +158,7 @@ int main() {
 
 	status = clEnqueueWriteBuffer(cmdQueue, buffer_I, CL_FALSE, 0, sizeof(float) * c.N * c.C * c.H * c.W, data, 0, NULL, NULL); // host (A) -> device (bufferA)전달
 	status = clEnqueueWriteBuffer(cmdQueue, buffer_W, CL_FALSE, 0, sizeof(float) * c.K * c.C * c.KH* c.KW, weight, 0, NULL, NULL); // host (B) -> device (bufferB)전달
+	status = clEnqueueWriteBuffer(cmdQueue, buffer_B, CL_FALSE, 0, sizeof(float) * c.K , bias, 0, NULL, NULL); // host (B) -> device (bufferB)전달
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
@@ -169,27 +174,28 @@ int main() {
 	//-----------------------------------------------------
 	// STEP 8: Create the kernel
 	//----------------------------------------------------- 
-	cl_kernel conv2d_kernel = clCreateKernel(program, "conv2d_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	cl_kernel conv2d_kernel = clCreateKernel(program, "conv2d_kernel2", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
 	// STEP 9: Set the kernel arguments
 	status = clSetKernelArg(conv2d_kernel, 0, sizeof(cl_mem), &buffer_O); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 1, sizeof(cl_mem), &buffer_W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 2, sizeof(cl_mem), &buffer_I); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 3, sizeof(cl_int), &c.N); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 4, sizeof(cl_int), &c.C); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 5, sizeof(cl_int), &c.H); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 6, sizeof(cl_int), &c.W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 7, sizeof(cl_int), &c.K); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 8, sizeof(cl_int), &c.P); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 9, sizeof(cl_int), &c.Q); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 10, sizeof(cl_int), &c.KH); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 11, sizeof(cl_int), &c.KW); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 12, sizeof(cl_int), &c.SH); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 13, sizeof(cl_int), &c.SW); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 14, sizeof(cl_int), &c.PL); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
-	status = clSetKernelArg(conv2d_kernel, 15, sizeof(cl_int), &c.PT); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 1, sizeof(cl_mem), &buffer_I); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 2, sizeof(cl_mem), &buffer_W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 3, sizeof(cl_mem), &buffer_B); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 4, sizeof(cl_int), &c.N); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 5, sizeof(cl_int), &c.C); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 6, sizeof(cl_int), &c.H); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 7, sizeof(cl_int), &c.W); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 8, sizeof(cl_int), &c.K); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 9, sizeof(cl_int), &c.P); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 10, sizeof(cl_int), &c.Q); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 11, sizeof(cl_int), &c.KH); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 12, sizeof(cl_int), &c.KW); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 13, sizeof(cl_int), &c.SH); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 14, sizeof(cl_int), &c.SW); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 15, sizeof(cl_int), &c.PL); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
+	status = clSetKernelArg(conv2d_kernel, 16, sizeof(cl_int), &c.PT); // 커널 함수 인자 값 전달 (버퍼와 커널 연결)
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------
 	// STEP 10: Configure the work-item structure
@@ -221,16 +227,13 @@ int main() {
 	status = clEnqueueReadBuffer(cmdQueue, buffer_O, CL_TRUE, 0, sizeof(float) * c.K * c.P * c.Q * c.N, output_o, 0, NULL, NULL); // device (bufferC) -> host (C) 전달
 	clReleaseMemObject(buffer_O);
 
-	//printData(im2col, 1, 1, c.C * c.KH * c.KW, c.N * c.P * c.Q);
-	//printData(output_m, 1, 1, c.K, c.N * c.P * c.Q);
-	//printf("cpu ouptut \n");
-	//printData(output_o, c.N, c.K, c.P, c.Q);// 결과 확인
+	//printData(output_o, c.N, c.K, c.P, c.Q);
 
 	zeroPadding(data_pad, data, c.N, c.C, c.H, c.W, c.PL, c.PR, c.PT, c.PB);
 	//printData(data_pad, c.N, c.C, (c.H + c.PT + c.PB), (c.W + c.PL + c.PR), 1);	// 결과 확인
-	convolution(output_h, data_pad, weight, c.N, c.C, (c.H + c.PT + c.PB), (c.W + c.PL + c.PR), c.K, c.KH, c.KW, c.SH, c.SW);
+	convolution(output_h, data_pad, weight, bias, c.N, c.C, (c.H + c.PT + c.PB), (c.W + c.PL + c.PR), c.K, c.KH, c.KW, c.SH, c.SW);
 	//printf("cpu ouptut \n");
-	//printData(output_h, c.N, c.K, c.P, c.Q, 1);	// 결과 확인
+	//printData(output_h, c.N, c.K, c.P, c.Q);	// 결과 확인
 	compareResults(output_h, output_o, c.K * c.P * c.Q * c.N); // Verify the output
 
 	if (status != 0) checkError(status, __LINE__);
