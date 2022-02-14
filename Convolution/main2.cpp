@@ -20,7 +20,7 @@ int main() {
 	//Conv2dConfig c = {1,1,2160,3840, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	//Conv2dConfig c = {1,1,2160,3840, 32,0,0, 3, 3,  1, 1,  2,2,2,2};
 	//Conv2dConfig c = {1,1,2160,3840, 1,0,0, 5, 5,  1, 1,  2,2,2,2};
-	Conv2dConfig c = { 1,3,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4 };
+	Conv2dConfig c = { 1,3,512,512, 3,0,0, 3, 3,  1, 1,  0,0,0,0 };
 	//Conv2dConfig c = {1,1,10,10, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	//Conv2dConfig c = {1,3,3,3, 2,0,0, 2, 2,  1, 1,  1,1,1,1 };
 	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;
@@ -174,7 +174,7 @@ int main() {
 	//-----------------------------------------------------
 	// STEP 8: Create the kernel
 	//----------------------------------------------------- 
-	cl_kernel conv2d_kernel = clCreateKernel(program, "conv2d_kernel2", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
+	cl_kernel conv2d_kernel = clCreateKernel(program, "conv2d_kernel", &status); // 커널 생성 (커널 함수 이름을 인자로 전달)
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------

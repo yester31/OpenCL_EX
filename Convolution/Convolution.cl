@@ -90,48 +90,8 @@ __kernel void col2im_kernel(
 	output[s_idx] = input[n_idx];
 }
 
-// on construct....
+// 2. Naive Convolution 
 __kernel void conv2d_kernel(
-	__global float *output,
-	__global float *input,
-	__global float *weight,
-	int N, int C, int H, int W,
-	int K, int P, int Q,
-	int KH, int KW,
-	int SH, int SW,
-	int left, int top) {
-
-	int tid = get_global_id(0);
-	if (tid >= N * K  *P * Q) return;
-
-	int q_idx = tid % Q;// Q 
-	int idx = tid / Q;
-	int p_idx = idx % P;// P 
-	idx /= P;
-	int k_idx = idx % K;// K
-	int n_idx = idx / K;// N
-
-	float sum = 0;
-	for (int c_idx = 0; c_idx < C; c_idx++) {
-		int offset_i = c_idx * H * W + n_idx * C * H * W;
-		int offset_w = c_idx * KH * KW + k_idx * C * KH * KW;
-
-		for (int y = p_idx * SH; y < p_idx * SH + KH; y++) {
-			for (int x = q_idx * SW; x < q_idx * SW + KW; x++) {
-
-				int i_idx = (x + left) + (y + top) * W + offset_i;
-
-				int w_idx = (x - q_idx * SW) + (y - p_idx * SH) * KH + offset_w;
-
-				sum += input[i_idx] * weight[w_idx];
-			}
-		}
-		output[tid] += sum;
-	}
-}
-
-// 1. Naive Convolution 
-__kernel void conv2d_kernel2(
 	__global float *output,
 	__global float *input,
 	__global float *weight,
@@ -173,4 +133,114 @@ __kernel void conv2d_kernel2(
 		}
 	}
 	output[tid] += bias[k_idx];
+}
+
+// Matrix multiplication (Tiling in the local memory)
+
+#define TS 16			// The square-root of the 2D tile-size (== work-group dims)
+
+// Tiled and coalesced version
+__kernel void tiled_matMul_kernel(
+	__global float *A,
+	__global float *B,
+	__global float *C,
+	int M, int N, int K
+)
+{
+	// Thread identifiers
+	const int row = get_local_id(0); // Local row ID (max: TS)
+	const int col = get_local_id(1); // Local col ID (max: TS)
+	const int globalRow = TS * get_group_id(0) + row; // Row ID of C (0..M)
+	const int globalCol = TS * get_group_id(1) + col; // Col ID of C (0..N)
+
+	// Local memory to fit a tile of TS*TS elements of A and B
+	__local float Asub[TS][TS];
+	__local float Bsub[TS][TS];
+
+	// Initialise the accumulation register
+	float acc = 0.0f;
+
+	// Loop over all tiles
+	const int numTiles = K / TS;
+	for (int t = 0; t < numTiles; t++) {
+
+		// Load one tile of A and B into local memory
+		const int tiledRow = TS * t + row;
+		const int tiledCol = TS * t + col;
+		Asub[col][row] = A[tiledCol*M + globalRow];
+		Bsub[col][row] = B[globalCol*K + tiledRow];
+
+		// Synchronise to make sure the tile is loaded
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		// Perform the computation for a single tile
+		for (int k = 0; k < TS; k++) {
+			acc += Asub[k][row] * Bsub[col][k];
+		}
+
+		// Synchronise before loading the next tile
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	// Store the final result in C
+	C[globalCol*M + globalRow] = acc;
+}
+
+// Tiled and coalesced version
+__kernel void tiled_matMul_kernel2(
+	__global float *A,
+	__global float *B,
+	__global float *C,
+	int M, int N, int K
+)
+{
+	// Thread identifiers
+	const int row = get_local_id(0); // Local row ID (max: TS)
+	const int col = get_local_id(1); // Local col ID (max: TS)
+	const int globalRow = TS * get_group_id(0) + row; // Row ID of C (0..M)
+	const int globalCol = TS * get_group_id(1) + col; // Col ID of C (0..N)
+
+	// Local memory to fit a tile of TS*TS elements of A and B
+	__local float Asub[TS][TS];
+	__local float Bsub[TS][TS];
+	float acc = 0.0f;
+
+	if (globalRow < (M / TS)*TS && globalCol < (N / TS)*TS) {
+		// Initialise the accumulation register
+		acc = 0.0f;
+		// Loop over all tiles
+		const int numTiles = K / TS;
+		for (int t = 0; t < numTiles; t++) {
+
+			// Load one tile of A and B into local memory
+			const int tiledRow = TS * t + row;
+			const int tiledCol = TS * t + col;
+			Asub[col][row] = A[tiledCol*M + globalRow];
+			Bsub[col][row] = B[globalCol*K + tiledRow];
+
+			// Synchronise to make sure the tile is loaded
+			barrier(CLK_LOCAL_MEM_FENCE);
+
+			// Perform the computation for a single tile
+			for (int k = 0; k < TS; k++) {
+				acc += Asub[k][row] * Bsub[col][k];
+			}
+
+			// Synchronise before loading the next tile
+			barrier(CLK_LOCAL_MEM_FENCE);
+		}
+		// Store the final result in C
+		C[globalCol*M + globalRow] = acc;
+
+	}
+	else {
+		if (globalRow < M && globalCol < N) {
+			acc = 0.0f;
+			for (int k = 0; k < K; ++k) {
+				acc += A[globalRow * K + k] * B[k * N + globalCol];
+			}
+			// Store the final result in C
+			C[globalCol*M + globalRow] = acc;
+		}
+	}
 }

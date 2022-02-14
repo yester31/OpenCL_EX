@@ -20,7 +20,8 @@ int main() {
 	//Conv2dConfig c = {1,1,2160,3840, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	//Conv2dConfig c = {1,1,2160,3840, 32,0,0, 3, 3,  1, 1,  2,2,2,2};
 	//Conv2dConfig c = {1,1,2160,3840, 1,0,0, 5, 5,  1, 1,  2,2,2,2};
-	Conv2dConfig c = {1,1,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
+	//Conv2dConfig c = {1,1,256,256, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
+	Conv2dConfig c = { 1,3,512,512, 3,0,0, 3, 3,  1, 1,  0,0,0,0 };
 	//Conv2dConfig c = {1,1,10,10, 64,0,0, 9, 9,  1, 1,  4,4,4,4};
 	c.P = ((c.H + c.PT + c.PB - c.KH) / c.SH) + 1;
 	c.Q = ((c.W + c.PL + c.PR - c.KW) / c.SW) + 1;
@@ -239,10 +240,10 @@ int main() {
 	size_t globalWorkSize2[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
 	globalWorkSize2[0] = c.K * c.N * c.P * c.Q;
 
-	//const size_t local[2] = { TS, TS };
-	//size_t global_x = (c.K % TS) == 0 ? c.K : ((c.K / TS) + 1) * TS;
-	//size_t global_y = (n_v % TS) == 0 ? n_v : ((n_v / TS) + 1) * TS;
-	//const size_t global[2] = { global_x, global_y };
+	const size_t local[2] = { TS, TS };
+	size_t global_x = (c.K % TS) == 0 ? c.K : ((c.K / TS) + 1) * TS;
+	size_t global_y = (n_v % TS) == 0 ? n_v : ((n_v / TS) + 1) * TS;
+	const size_t global[2] = { global_x, global_y };
 
 	size_t globalWorkSize3[1]; // 실행을 위한 워크 아이템의 인덱스 공간(글로벌 워크 사이즈) 정의
 	globalWorkSize3[0] = c.K * c.N * c.P * c.Q;
@@ -291,12 +292,12 @@ int main() {
 	//printf("cpu ouptut \n");
 	//printData(output_o, c.N, c.K, c.P, c.Q);// 결과 확인
 
-	zeroPadding(data_pad, data, c.N, c.C, c.H, c.W, c.PL, c.PR, c.PT, c.PB);
+	//zeroPadding(data_pad, data, c.N, c.C, c.H, c.W, c.PL, c.PR, c.PT, c.PB);
 	//printData(data_pad, c.N, c.C, (c.H + c.PT + c.PB), (c.W + c.PL + c.PR), 1);	// 결과 확인
-	convolution(output_h, data_pad, weight, c.N, c.C, (c.H + c.PT + c.PB), (c.W + c.PL + c.PR), c.K, c.KH, c.KW, c.SH, c.SW);
+	//convolution(output_h, data_pad, weight, c.N, c.C, (c.H + c.PT + c.PB), (c.W + c.PL + c.PR), c.K, c.KH, c.KW, c.SH, c.SW);
 	//printf("cpu ouptut \n");
 	//printData(output_h, c.N, c.K, c.P, c.Q, 1);	// 결과 확인
-	compareResults(output_h, output_o, c.K * c.P * c.Q * c.N); // Verify the output
+	//compareResults(output_h, output_o, c.K * c.P * c.Q * c.N); // Verify the output
 
 	if (status != 0) checkError(status, __LINE__);
 	//-----------------------------------------------------

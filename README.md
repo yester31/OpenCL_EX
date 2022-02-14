@@ -33,10 +33,14 @@
 1. GEMM Convolution(Completed)
    - process : im2col -> Matrix Multiplication -> col2im
    - Matrix Multiplication can be changed to better logic
-2. Conventional Convolution(Completed)
+2. Naive Convolution(Completed)
 3. FFT Convolution(Plan)
 4. Winograd Convolution(Plan)
 
+	- Time Check (input[1, 3, 512, 512] kernel[3, 3, 3, 3] output[ 1, 3, 510, 510])
+		- GEMM Conv2d  (gpu) : 1.76237 [msec]
+		- Naive Conv2d (gpu) : 0.22528 [msec]
+		- Naive Conv2d (cpu) : 22.32400 [msec]
 
 ##  OpenCL Bicubic Interpolation(Completed)
 - Bicubic Interpolation

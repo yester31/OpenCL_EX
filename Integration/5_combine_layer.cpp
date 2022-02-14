@@ -15,15 +15,18 @@
 int main() {
 	// Bicubic Interpolation
 	// Input [N, C, H, W] -> Ouput [N, C, P, Q]
-	//Configs ccfg_b(1, 3, 1080, 1920, 2);				// bicubic
-	Configs ccfg_b(1, 3, 256, 256, 2);					// bicubic
+	Configs ccfg_b(1, 3, 1080, 1920, 2);				// bicubic
+	//Configs ccfg_b(1, 3, 256, 256, 2);					// bicubic
 	//Configs ccfg_b(1, 3, 512, 512, 2);				// bicubic
 	//Configs ccfg_b(1, 3, 1024, 1024, 2);				// bicubic
 	Configs ccfg_c1(ccfg_b);							// convert-1
 	Configs ccfg_s(ccfg_c1, 3, 1);						// Split
-	Configs ccfg1(ccfg_s, 32, 9, 9, 1, 1, 4, 4, 4, 4);	// conv2d 1
+	Configs ccfg1(ccfg_s, 64, 9, 9, 1, 1, 4, 4, 4, 4);	// conv2d 1
+	//Configs ccfg1(ccfg_s, 32, 3, 3, 1, 1, 1, 1, 1, 1);	// conv2d 1
 	Configs ccfg2(ccfg1, 32, 5, 5, 1, 1, 2, 2, 2, 2);	// conv2d 2
+	//Configs ccfg2(ccfg1, 32, 3, 3, 1, 1, 1, 1, 1, 1);	// conv2d 2
 	Configs ccfg3(ccfg2, 1, 5, 5, 1, 1, 2, 2, 2, 2);	// conv2d 3
+	//Configs ccfg3(ccfg2, 1, 3, 3, 1, 1, 1, 1, 1, 1);	// conv2d 3
 	Configs ccfg_cm(ccfg3, 1, 3);						// combine
 	Configs ccfg_c2(ccfg_cm);							// convert-2
 
@@ -35,10 +38,13 @@ int main() {
 
 	float *weight1 = (float*)malloc(sizeof(float) * ccfg1.K * ccfg1.C * ccfg1.KH * ccfg1.KW);		// conv2d-1 weight [K,C,KH,KW]
 	float *output1 = (float*)calloc(ccfg1.K * ccfg1.P * ccfg1.Q * ccfg1.N, sizeof(float));			// conv2d-1 output [N, K, P, Q]
+	float *bias1   = (float*)calloc(ccfg1.K, sizeof(float));										// conv2d-1 bias [K]
 	float *weight2 = (float*)malloc(sizeof(float) * ccfg2.K * ccfg2.C * ccfg2.KH * ccfg2.KW);		// conv2d-2 weight [K,C,KH,KW]
 	float *output2 = (float*)calloc(ccfg2.K * ccfg2.P * ccfg2.Q * ccfg2.N, sizeof(float));			// conv2d-2 output [N, K, P, Q]
+	float *bias2 = (float*)calloc(ccfg2.K, sizeof(float));											// conv2d-2 bias [K]
 	float *weight3 = (float*)malloc(sizeof(float) * ccfg3.K * ccfg3.C * ccfg3.KH * ccfg3.KW);		// conv2d-3 weight [K,C,KH,KW]
 	float *output3 = (float*)calloc(ccfg3.K * ccfg3.P * ccfg3.Q * ccfg3.N, sizeof(float));			// conv2d-3 output [N, K, P, Q]
+	float *bias3 = (float*)calloc(ccfg3.K, sizeof(float));											// conv2d-3 bias [K]
 
 	float *output_cm = (float*)malloc(sizeof(float)* ccfg_cm.N * ccfg_cm.K * ccfg_cm.P * ccfg_cm.Q);	// combine Ouput [N, K, P, Q]
 	float *output_c2 = (float*)malloc(sizeof(float)* ccfg_c2.N * ccfg_c2.K * ccfg_c2.P * ccfg_c2.Q);	// convert-2 Ouput [N, K, P, Q]
@@ -47,8 +53,11 @@ int main() {
 	// input data 초기화
 	initDataRandom255(input, ccfg_b.N * ccfg_b.C * ccfg_b.H * ccfg_b.W);
 	initDataRandomZP1(weight1, ccfg1.K * ccfg1.C * ccfg1.KH * ccfg1.KW);
+	initDataRandomZP1(bias1, ccfg1.K);
 	initDataRandomZP1(weight2, ccfg2.K * ccfg2.C * ccfg2.KH * ccfg2.KW);
+	initDataRandomZP1(bias2, ccfg2.K);
 	initDataRandomZP1(weight3, ccfg3.K * ccfg3.C * ccfg3.KH * ccfg3.KW);
+	initDataRandomZP1(bias3, ccfg3.K);
 	//================================================================================================================
 
 	// 플랫폼, 디바이스, 컨텍스트, 커맨드 큐 설정 부분 (openCL 코드에서 공통 부분)
@@ -74,8 +83,11 @@ int main() {
 	cl_mem outputBuffer_c2	= clCreateBuffer(ocl.context, CL_MEM_READ_WRITE, sizeof(float) * ccfg_c2.N	* ccfg_c2.K * ccfg_c2.P	* ccfg_c2.Q,	NULL, &status);	// Output array on the device
 
 	cl_mem weightBuffer1	= clCreateBuffer(ocl.context, CL_MEM_READ_ONLY, sizeof(float) * ccfg1.K * ccfg1.C * ccfg1.KH * ccfg1.KW, NULL, &status);// Input weight array on the device
+	cl_mem biasBuffer1	= clCreateBuffer(ocl.context, CL_MEM_READ_ONLY, sizeof(float) * ccfg1.K, NULL, &status);// Input weight array on the device
 	cl_mem weightBuffer2	= clCreateBuffer(ocl.context, CL_MEM_READ_ONLY, sizeof(float) * ccfg2.K * ccfg2.C * ccfg2.KH * ccfg2.KW, NULL, &status);// Input weight array on the device
+	cl_mem biasBuffer2	= clCreateBuffer(ocl.context, CL_MEM_READ_ONLY, sizeof(float) * ccfg2.K, NULL, &status);// Input weight array on the device
 	cl_mem weightBuffer3	= clCreateBuffer(ocl.context, CL_MEM_READ_ONLY, sizeof(float) * ccfg3.K * ccfg3.C * ccfg3.KH * ccfg3.KW, NULL, &status);// Input weight array on the device
+	cl_mem biasBuffer3	= clCreateBuffer(ocl.context, CL_MEM_READ_ONLY, sizeof(float) * ccfg3.K, NULL, &status);// Input weight array on the device
 
 	if (status != 0) checkError(status, __LINE__);
 	//================================================================================================================
@@ -83,8 +95,11 @@ int main() {
 	// host데이터를 device로 전달 (host -> device)
 	status = clEnqueueWriteBuffer(ocl.commandQueue, inputBuffer_b, CL_FALSE, 0, sizeof(uint8_t) * ccfg_b.N * ccfg_b.C * ccfg_b.H * ccfg_b.W, input, 0, NULL, NULL);
 	status = clEnqueueWriteBuffer(ocl.commandQueue, weightBuffer1, CL_FALSE, 0, sizeof(float) * ccfg1.K * ccfg1.C * ccfg1.KH* ccfg1.KW, weight1, 0, NULL, NULL); // host (weight1) -> device (buffer1)전달
+	status = clEnqueueWriteBuffer(ocl.commandQueue, biasBuffer1, CL_FALSE, 0, sizeof(float) * ccfg1.K , bias1, 0, NULL, NULL); // host (weight1) -> device (buffer1)전달
 	status = clEnqueueWriteBuffer(ocl.commandQueue, weightBuffer2, CL_FALSE, 0, sizeof(float) * ccfg2.K * ccfg2.C * ccfg2.KH* ccfg2.KW, weight2, 0, NULL, NULL); // host (weight1) -> device (buffer1)전달
+	status = clEnqueueWriteBuffer(ocl.commandQueue, biasBuffer2, CL_FALSE, 0, sizeof(float) * ccfg2.K, bias2, 0, NULL, NULL); // host (weight1) -> device (buffer1)전달
 	status = clEnqueueWriteBuffer(ocl.commandQueue, weightBuffer3, CL_FALSE, 0, sizeof(float) * ccfg3.K * ccfg3.C * ccfg3.KH* ccfg3.KW, weight3, 0, NULL, NULL); // host (weight1) -> device (buffer1)전달
+	status = clEnqueueWriteBuffer(ocl.commandQueue, biasBuffer3, CL_FALSE, 0, sizeof(float) * ccfg3.K , bias3, 0, NULL, NULL); // host (weight1) -> device (buffer1)전달
 
 	if (status != 0) checkError(status, __LINE__);
 	//================================================================================================================
@@ -104,13 +119,13 @@ int main() {
 		split_opencl(outputBuffer_s, outputBuffer_c1, ccfg_s, ocl, status, time);
 
 		//cl_mem outputBuffer1 = clCreateBuffer(ocl.context, CL_MEM_READ_WRITE, sizeof(float)* ccfg1.N * ccfg1.K * ccfg1.P * ccfg1.Q, NULL, &status);	// Output array on the device
-		conv2d_opencl(outputBuffer1, outputBuffer_s, weightBuffer1, ccfg1, ocl, status, time);
+		conv2d_opencl(outputBuffer1, outputBuffer_s, weightBuffer1, biasBuffer1, ccfg1, ocl, status, time);
 
 		//cl_mem outputBuffer2 = clCreateBuffer(ocl.context, CL_MEM_READ_WRITE, sizeof(float)* ccfg2.N * ccfg2.K * ccfg2.P * ccfg2.Q, NULL, &status);	// Output array on the device
-		conv2d_opencl(outputBuffer2, outputBuffer1, weightBuffer2, ccfg2, ocl, status, time);
+		conv2d_opencl(outputBuffer2, outputBuffer1, weightBuffer2, biasBuffer2, ccfg2, ocl, status, time);
 
 		//cl_mem outputBuffer3 = clCreateBuffer(ocl.context, CL_MEM_READ_WRITE, sizeof(float)* ccfg3.N * ccfg3.K * ccfg3.P * ccfg3.Q, NULL, &status);	// Output array on the device
-		conv2d_opencl(outputBuffer3, outputBuffer2, weightBuffer3, ccfg3, ocl, status, time);
+		conv2d_opencl(outputBuffer3, outputBuffer2, weightBuffer3, biasBuffer3, ccfg3, ocl, status, time);
 
 		//cl_mem outputBuffer_c1 = clCreateBuffer(ocl.context, CL_MEM_READ_WRITE, sizeof(float)* ccfg_cm.N * ccfg_cm.K * ccfg_cm.P * ccfg_cm.Q, NULL, &status);	// Output array on the device
 		combine_opencl(outputBuffer_c1, outputBuffer3, ccfg_cm, ocl, status, time);
@@ -160,6 +175,9 @@ int main() {
 	clReleaseMemObject(weightBuffer1);
 	clReleaseMemObject(weightBuffer2);
 	clReleaseMemObject(weightBuffer3);
+	clReleaseMemObject(biasBuffer1);
+	clReleaseMemObject(biasBuffer2);
+	clReleaseMemObject(biasBuffer3);
 	clReleaseMemObject(outputBuffer1);
 	clReleaseMemObject(outputBuffer2);
 	clReleaseMemObject(outputBuffer3);
@@ -173,6 +191,12 @@ int main() {
 	free(output1);
 	free(output2);
 	free(output3);
+	free(weight1);
+	free(weight2);
+	free(weight3);
+	free(bias1);
+	free(bias2);
+	free(bias3);
 	free(output_cm);
 	free(output_c2);
 

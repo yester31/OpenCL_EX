@@ -194,6 +194,7 @@ __kernel void matMul_kernel(
 __kernel void col2im_kernel(
 	__global float *output,
 	__global float *input,
+	__global float *bias,
 	int N, int K, int P, int Q)
 {
 	int tid = get_global_id(0);
@@ -209,7 +210,7 @@ __kernel void col2im_kernel(
 	int s_idx = b_idx * K * P * Q + k_idx * P * Q + p_idx * Q + q_idx;
 	int n_idx = k_idx * N * P * Q + b_idx * P * Q + p_idx * Q + q_idx;
 
-	output[s_idx] = input[n_idx];
+	output[s_idx] = input[n_idx] + bias[k_idx];
 }
 
 // split (N1HW->N3HW)
@@ -251,4 +252,49 @@ __kernel void convert2_kernel(
 	output[iidx] = 298.082f * input[gidx2] / 256.f + 516.412f * input[gidx1] / 256.f - 276.836f;
 	output[iidx + 1] = 298.082f * input[gidx2] / 256.f - 100.291f * input[gidx1] / 256.f - 208.120f * input[gidx0] / 256. + 135.576f;
 	output[iidx + 2] = 298.082f * input[gidx2] / 256.f + 408.583f * input[gidx0] / 256.f - 222.921f;
+}
+
+// 2. Naive Convolution 
+__kernel void conv2d_kernel(
+	__global float *output,
+	__global float *input,
+	__global float *weight,
+	__global float *bias,
+	int N, int C, int H, int W,
+	int K, int P, int Q,
+	int KH, int KW,
+	int SH, int SW,
+	int left, int top) {
+
+	int tid = get_global_id(0);
+	if (tid >= N * K  *P * Q) return;
+
+	int q_idx = tid % Q;// Q 
+	int idx = tid / Q;
+	int p_idx = idx % P;// P 
+	idx /= P;
+	int k_idx = idx % K;// K
+	int n_idx = idx / K;// N
+
+	int offset_i0 = n_idx * C * H * W;
+	int offset_w0 = k_idx * C * KH * KW;
+
+	for (int c_idx = 0; c_idx < C; c_idx++) {
+		int offset_i = c_idx * H * W + offset_i0;
+		int offset_w = c_idx * KH * KW + offset_w0;
+
+		for (int y = p_idx * SH; y < p_idx * SH + KH; y++) {
+			for (int x = q_idx * SW; x < q_idx * SW + KW; x++) {
+
+				if (y >= top && x >= left && y < (H + top) && x < (W + left)) {
+
+					int i_idx = (x - left) + (y - top) * W + offset_i;
+					int w_idx = (x - q_idx * SW) + (y - p_idx * SH) * KH + offset_w;
+
+					output[tid] += input[i_idx] * weight[w_idx];
+				}
+			}
+		}
+	}
+	output[tid] += bias[k_idx];
 }
