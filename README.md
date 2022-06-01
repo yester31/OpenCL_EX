@@ -6,7 +6,7 @@
 * Intel(R) Iris(R) Xe Graphics (iGPU)
 * NVIDIA GeForce RTX 3060 Laptop GPU (gpu)
 
-## OpenCL Vector Add(Completed)
+## OpenCL Vector Add
 - vector sum
 
 
@@ -42,49 +42,30 @@
 		- Naive Conv2d (gpu) : 0.22528 [msec]
 		- Naive Conv2d (cpu) : 22.32400 [msec]
 
-##  OpenCL Bicubic Interpolation(Completed)
+##  OpenCL Bicubic Interpolation
 - Bicubic Interpolation
 - Add test code(validation results with pytorch Bicubic Interpolation) 
 
 
-##  OpenCL Nearnest Neighbor Interpolation(Completed)
+##  OpenCL Nearnest Neighbor Interpolation
 - Nearnest Neighbor Interpolation
 - Add test code(validation results with pytorch Nearnest Neighbor Interpolation) 
 
 
-##  OpenCL BGR2YCbCr(Completed)
+##  OpenCL BGR2YCbCr
 - transformation image data format BGR to YCbC, NHWC->NCHW
 - Add test code(validation results with python BGR2YCbC) 
 
 
-##  OpenCL YCbCr2BGR(Completed)
+##  OpenCL YCbCr2BGR
 - transformation image data format YCbC to BGR, NCHW->NHWC
 - Add test code(validation results with python YCbC2BGR)
 
 
-##  OpenCL Concat (Completed)
+##  OpenCL Concat
 - Concatenate two tensor for channal side
 - Add test code(validation results with python concat)
 
-
-##  OpenCL Batch Normalization (Preparing)
-
-##  OpenCL Max Pool (Preparing)
-
-##  OpenCL Adaptive Average Pool (Preparing)
-
-##  OpenCL Linear(Dense) (Preparing)
-
-
-##  OpenCL Inference Framework Architecture design (Preparing)
-*
-
-
-##  OpenCL resnet18 model (Plan)
-*
-
-##  OpenCL yolov5s model (Plan)
-*
 
 
 ## Reference
